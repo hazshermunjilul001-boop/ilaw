@@ -23,7 +23,7 @@ const noneB = { top: solid(0, 'FFFFFF'), bottom: solid(0, 'FFFFFF'), left: solid
 function p(text: string, bold = false, size = 20, color = '000000', italic = false): Paragraph {
   return new Paragraph({
     spacing: { after: 60 },
-    children: [new TextRun({ text, bold, size, font: 'Arial', color, italic })],
+    children: [new TextRun({ text, bold, size, font: 'Arial', color, italics })],
   });
 }
 
