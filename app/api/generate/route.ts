@@ -167,12 +167,44 @@ ABSOLUTE RULES:
 6. Use - for bullet points.
 7. Number steps as 1. 2. 3.`;
 
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 4096,
-      temperature: 0.7,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const MODELS = [
+      'llama-3.3-70b-versatile',   // best quality, try first
+      'llama-3.1-8b-instant',       // faster, smaller, separate quota
+      'gemma2-9b-it',               // Google model, separate quota
+    ];
+
+    let completion: any = null;
+    let lastError: any = null;
+
+    for (const model of MODELS) {
+      try {
+        console.log('Trying model:', model);
+        completion = await groq.chat.completions.create({
+          model,
+          max_tokens: 4096,
+          temperature: 0.7,
+          messages: [{ role: 'user', content: prompt }],
+        });
+        console.log('Success with model:', model);
+        break;
+      } catch (err: any) {
+        console.warn(`Model ${model} failed:`, err?.message);
+        lastError = err;
+        // Only continue to next model if it's a rate limit error
+        if (!err?.message?.includes('rate_limit') && !err?.message?.includes('429')) {
+          throw err;
+        }
+      }
+    }
+
+if (!completion) {
+  const waitMsg = lastError?.message?.match(/try again in (.+?)\./)?.[1];
+  throw new Error(
+    waitMsg
+      ? `All models are rate limited. Please try again in ${waitMsg}.`
+      : 'All models are currently rate limited. Please try again in a few minutes.'
+  );
+}
 
     console.log('Groq responded. Finish reason:', completion.choices[0].finish_reason);
 
