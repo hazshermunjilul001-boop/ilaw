@@ -1,13 +1,20 @@
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
+import Groq from 'groq-sdk';
+import { NextResponse } from 'next/server';
+
 import Groq from 'groq-sdk';
 import { NextResponse } from 'next/server';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request) {
-  const {
-    lessonName, learningArea, teacherName, gradeSection,
-    competency, sessions, classroomDetails
-  } = await req.json();
+  try {
+    const {
+      lessonName, learningArea, teacherName, gradeSection,
+      competency, sessions, classroomDetails
+    } = await req.json();
 
   const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
 
@@ -170,12 +177,20 @@ ABSOLUTE RULES — follow every one of these:
 8. Use bullet points (starting with -) for all lists.
 9. Number steps in procedures as 1. 2. 3. etc.`;
 
-  const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
-    max_tokens: 8000,
-    messages: [{ role: 'user', content: prompt }],
-  });
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: prompt }],
+    });
 
-  const content = completion.choices[0].message.content ?? '';
-  return NextResponse.json({ content });
+    const content = completion.choices[0].message.content ?? '';
+    return NextResponse.json({ content });
+
+  } catch (error: any) {
+    console.error('Groq API error:', error?.message || error);
+    return NextResponse.json(
+      { error: error?.message || 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }

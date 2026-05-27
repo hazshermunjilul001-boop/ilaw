@@ -26,12 +26,13 @@ export default function Home() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!data.content) throw new Error('No content');
+      if (data.error) throw new Error(data.error);
+      if (!data.content) throw new Error('No content returned');
       const { buildDocx } = await import('../lib/buildDocx');
       await buildDocx(data.content, form.teacherName, form.lessonName, form.learningArea, form.gradeSection, form.sessions);
       setStatus('success');
     } catch {
-      setStatus('error');
+      setStatus('error:' + (e as Error).message);
     }
     setLoading(false);
   };
@@ -510,7 +511,7 @@ export default function Home() {
                 )}
               </button>
 
-              {status === 'loading' && (
+              {status === 'generating' && (
                 <div className="status-box status-loading">
                   🤖 Groq AI is crafting your detailed lesson plan — this takes about 30–50 seconds...
                 </div>
@@ -520,9 +521,9 @@ export default function Home() {
                   ✅ Your ILAW lesson plan has been generated and is downloading now!
                 </div>
               )}
-              {status === 'error' && (
+              {status.startsWith('error') && (
                 <div className="status-box status-error">
-                  ❌ Something went wrong. Please check your internet connection and try again.
+                  ❌ {status.replace('error:', '') || 'Something went wrong. Please try again.'}
                 </div>
               )}
             </div>
