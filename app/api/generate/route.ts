@@ -32,33 +32,64 @@ export async function POST(req: Request) {
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
     console.log('Language mode:', isFilipino ? 'FILIPINO' : 'ENGLISH');
 
-    const languageRule = isFilipino ? `
-LANGUAGE RULE — Sundin ito nang mahigpit:
-Isulat ang BUONG lesson plan sa FILIPINO/TAGALOG.
-Isinalin ang LAHAT ng subheading:
-- "For All Learners" = "Para sa Lahat ng Mag-aaral"
-- "For Learners Who Need Support" = "Para sa Mga Mag-aaral na Nangangailangan ng Tulong"
-- "For Advanced Learners" = "Para sa mga Advanced na Mag-aaral"
-- "Guiding Questions" = "Mga Gabay na Tanong"
-- "Objective Link" = "Kaugnay na Layunin"
-- "Materials" = "Mga Kagamitan"
-- "Procedure" = "Mga Hakbang"
-- "Purpose" = "Layunin ng Aktibidad"
-- "Strengths and Prior Knowledge" = "Mga Kalakasan at Nakaraang Kaalaman"
-- "Interests and Engagement Hooks" = "Mga Interes at Pakikipag-ugnayan"
-- "Possible Barriers to Learning" = "Mga Hadlang sa Pagkatuto"
-- "Accommodations and Support" = "Mga Angkop na Tulong at Suporta"
-- "Primary Materials" = "Pangunahing Kagamitan"
-- "Reference Materials" = "Mga Sanggunian"
-- "Emergency Alternatives" = "Mga Alternatibo sa Emerhensya"
-- "Differentiated Instructions" = "Mga Naka-differentiate na Tagubilin"
-- "Synthesis and Reflection" = "Buod at Repleksyon"
-- "Guiding Questions" = "Mga Gabay na Tanong"
-Gumamit ng natural, propesyonal na Filipino. HUWAG gumamit ng Ingles sa loob ng mga seksyon.
-Ang section label keys (LEARNING_COMPETENCY:, FLOW:, atbp.) ay dapat manatiling ALL CAPS ENGLISH.
-` : `
-LANGUAGE RULE: Write the ENTIRE lesson plan in ENGLISH.
-`;
+    // ── Language-specific structural labels ──────────────────────────
+    const L = isFilipino ? {
+      objectiveLink:        'Kaugnay na Layunin',
+      teacherInstructions:  'Mga tagubilin para sa guro',
+      studentActions:       'Mga aksyon ng mag-aaral at inaasahang tugon',
+      exampleProblems:      'Mga halimbawang kontekstwalisado',
+      diffInstructions:     'Mga Naka-differentiate na Tagubilin',
+      forAll:               'Para sa Lahat ng Mag-aaral',
+      forSupport:           'Para sa Mga Nangangailangan ng Tulong',
+      forAdvanced:          'Para sa mga Advanced na Mag-aaral',
+      guidingQuestions:     'Mga Gabay na Tanong',
+      closingDiscussion:    'Pangwakas na talakayan',
+      exitTicket:           'Exit ticket',
+      realLifeConnection:   'Koneksyon sa tunay na buhay',
+      description:          'Paglalarawan',
+      administration:       'Paraan ng pagbibigay',
+      howResultsUsed:       'Paano gagamitin ang mga resulta',
+      rubric:               'Rubrika o gabay sa pagmamarka',
+      accommodation:        'Mga angkop na tulong para sa iba\'t ibang mag-aaral',
+      sessionLabel:         'SESYON',
+      partLabel:            'BAHAGI',
+      synthesisLabel:       'Buod at Repleksyon',
+      cognitive:            'Kognitibo',
+      psychomotor:          'Sikolohikal',
+      affective:            'Pandama',
+      byEndOfSession:       'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
+    } : {
+      objectiveLink:        'Objective Link',
+      teacherInstructions:  'Detailed teacher instructions',
+      studentActions:       'Student actions and expected responses',
+      exampleProblems:      'Contextualized example problems using Davao City landmarks',
+      diffInstructions:     'Differentiated Instructions',
+     forAll:               'For All Learners',
+      forSupport:           'For Learners Who Need Support',
+      forAdvanced:          'For Advanced Learners',
+      guidingQuestions:     'Guiding Questions',
+      closingDiscussion:    'Closing discussion',
+      exitTicket:           'Exit ticket',
+      realLifeConnection:   'Real-life connection',
+      description:          'Description',
+      administration:       'Administration',
+      howResultsUsed:       'How results are used',
+      rubric:               'Rubric or scoring guide',
+      accommodation:        'Accommodation for diverse learners',
+      sessionLabel:         'SESSION',
+      partLabel:            'PART',
+      synthesisLabel:       'Synthesis and Reflection',
+      cognitive:            'Cognitive',
+      psychomotor:          'Psychomotor',
+      affective:            'Affective',
+      byEndOfSession:       'By the end of this session, the learners will be able to',
+    };
+
+    const langRule = isFilipino
+      ? `PANUNTUNAN SA WIKA: Isulat ang BUONG nilalaman sa natural, propesyonal na FILIPINO/TAGALOG. 
+         Bawal ang Ingles sa loob ng mga seksyon maliban sa mga naka-ALL CAPS na section key labels (FLOW:, LEARNING_OBJECTIVES:, atbp.) at sa mga terminolohiyang teknikal na walang Filipino equivalent (hal. graph, demand curve).
+         Ang lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
+      : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
 
     const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
 ${languageRule}
@@ -77,6 +108,9 @@ Full MELC competency text, MELC code, Content Standard, and Performance Standard
 
 LEARNING_OBJECTIVES:
 For EACH session under bold session headers, write at least 3 objectives each for Cognitive, Psychomotor, and Affective domains. Use "By the end of this session, the learners will be able to..." format.
+**${L.cognitive}:** ${L.byEndOfSession}...
+**${L.psychomotor}:** ${L.byEndOfSession}...
+**${L.affective}:** ${L.byEndOfSession}...
 
 LEARNER_CONTEXT:
 Write 4 subsections:
@@ -101,16 +135,16 @@ Write the complete lesson flow for ALL sessions. For each session:
 
 **SESSION [N] - [Title] ([total time])**
 
-**PART 1 - [Activity Name] ([time])**
-**Objective Link:** which objective this addresses
-- detailed teacher instructions
-- student actions and expected responses
-- at least 3 contextualized example problems using Davao City landmarks
-**Differentiated Instructions:**
-**For All Learners:** what everyone does
-**For Learners Who Need Support:** simplified version with visual aids
-**For Advanced Learners:** extension task
-**Guiding Questions:**
+**${L.partLabel} 1 - [Pangalan ng Aktibidad/Activity Name] ([oras/time])**
+**${L.objectiveLink}:** kung aling layunin ang tinutugunan nito / which objective this addresses
+- ${L.teacherInstructions}
+- ${L.studentActions}
+- ${L.exampleProblems}: (at least 3, Davao City context)
+**${L.diffInstructions}:**
+**${L.forAll}:** 
+**${L.forSupport}:** 
+**${L.forAdvanced}:** 
+**${L.guidingQuestions}:**
 - question 1
 - question 2
 - question 3
@@ -135,13 +169,11 @@ OPPORTUNITIES_FOR_INTEGRATION:
 **Technology (Future Integration):** free tools for future use
 
 FORMATIVE_ASSESSMENT:
-For EACH session:
-**[Session N] - [Assessment Tool Name]**
-- description
-- administration
-- how results are used
-- rubric or scoring guide
-- accommodation for struggling learners
+**${L.description}:**
+**${L.administration}:**
+**${L.howResultsUsed}:**
+**${L.rubric}:**
+**${L.accommodation}:**
 
 EXTENDED_LEARNING:
 **For All Learners:** 2 tasks with Davao City context
