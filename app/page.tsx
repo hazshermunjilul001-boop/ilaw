@@ -31,7 +31,7 @@ export default function Home() {
       const { buildDocx } = await import('../lib/buildDocx');
       await buildDocx(data.content, form.teacherName, form.lessonName, form.learningArea, form.gradeSection, form.sessions);
       setStatus('success');
-    } catch {
+    } catch (e) {
       setStatus('error:' + (e as Error).message);
     }
     setLoading(false);
