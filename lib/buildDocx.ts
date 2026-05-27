@@ -249,40 +249,31 @@ function labelCell(title: string, desc: string): Paragraph[] {
 // ── Parse AI output ────────────────────────────────────────────────
 
 function parseSection(content: string, tag: string): string {
-  // All known section tags — stop at any of these
   const ALL_TAGS = [
-    'REFERENCES',
-    'DECLARATION_AI',
-    'LEARNING_COMPETENCY',
-    'LEARNING_OBJECTIVES',
-    'LEARNER_CONTEXT',
-    'PRE_LESSON',
-    'FLOW',
-    'LEARNING_RESOURCES',
-    'OPPORTUNITIES_FOR_INTEGRATION',
-    'FORMATIVE_ASSESSMENT',
-    'EXTENDED_LEARNING',
+    'REFERENCES', 'DECLARATION_AI', 'LEARNING_COMPETENCY',
+    'LEARNING_OBJECTIVES', 'LEARNER_CONTEXT', 'PRE_LESSON',
+    'FLOW', 'LEARNING_RESOURCES', 'OPPORTUNITIES_FOR_INTEGRATION',
+    'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING',
   ];
 
   const startTag = tag + ':';
   const startIdx = content.indexOf(startTag);
   if (startIdx === -1) return '';
 
-  // Start reading after the tag label
   let textStart = startIdx + startTag.length;
-
-  // Find the earliest occurrence of any OTHER tag after our start
   let endIdx = content.length;
+
   for (const other of ALL_TAGS) {
     if (other === tag) continue;
-    const otherTag = other + ':';
-    const pos = content.indexOf(otherTag, textStart);
-    if (pos !== -1 && pos < endIdx) {
-      endIdx = pos;
-    }
+    const pos = content.indexOf(other + ':', textStart);
+    if (pos !== -1 && pos < endIdx) endIdx = pos;
   }
 
-  return content.slice(textStart, endIdx).trim();
+  return content
+    .slice(textStart, endIdx)
+    .trim()
+    .replace(/^\*{1,2}\s*/, '')   // ← strip leading ** or *
+    .replace(/\s*\*{1,2}$/, '');  // ← strip trailing ** or *
 }
 
 // ── Main export ────────────────────────────────────────────────────

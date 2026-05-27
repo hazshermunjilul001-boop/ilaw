@@ -120,34 +120,42 @@ Write 4 subsections:
 **Accommodations and Support:** at least 4 bullets
 
 PRE_LESSON:
-For EACH session write a complete warm-up with:
-**[Session] - Activity Name (X minutes)**
-**Materials:** list
+Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
+
+**Session [N] - "[Pangalan ng Aktibidad]" ([oras])**
+**Materials:** [listahan]
 **Procedure:**
-1. step one
-2. step two
-3. step three
-4. step four
-**Purpose:** explanation
+1. [Eksaktong hakbang — ano ang gagawin ng guro]
+2. [Ano ang sasabihin ng guro — word-for-word kung posible]
+3. [Paano mag-re-respond ang mga mag-aaral]
+4. [Paano ito nag-a-activate ng prior knowledge]
+**Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
+**Halimbawa ng tanong para sa warm-up:** "[Isulat ang actual na tanong gamit ang Davao City context]"
 
 FLOW:
-Write the complete lesson flow for ALL sessions. For each session:
+Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi ng bawat sesyon:
 
-**SESSION [N] - [Title] ([total time])**
+**SESSION [N] - [Pamagat] ([kabuuang oras])**
 
-**${L.partLabel} 1 - [Pangalan ng Aktibidad/Activity Name] ([oras/time])**
-**${L.objectiveLink}:** kung aling layunin ang tinutugunan nito / which objective this addresses
-- ${L.teacherInstructions}
-- ${L.studentActions}
-- ${L.exampleProblems}: (at least 3, Davao City context)
+**BAHAGI 1 - [Pangalan ng Aktibidad] ([oras])**
+**Kaugnay na Layunin:** [isulat ang partikular na layunin]
+**Mga tagubilin para sa guro:** Isulat ang WORD-FOR-WORD na mga tagubilin — ano mismo ang sasabihin ng guro, halimbawa: "Tingnan ninyo ang mga larawan ng merkado sa Bankerohan. Sino sa inyo ang nakabili doon? Bakit mas mura ang gulay sa Bankerohan kumpara sa SM Lanang?"
+**Mga aksyon ng mag-aaral at inaasahang tugon:** Isulat ang eksaktong inaasahang sagot ng mga mag-aaral, halimbawa: "Sasabihin ng mga mag-aaral: 'Mas mura dahil maraming nagbebenta ng parehong produkto.'"
+**Mga halimbawang kontekstwalisado (Davao City):** Isulat ang TATLO o higit pang kongkretong halimbawa gamit ang mga lugar sa Davao City tulad ng:
+- Bankerohan Market, Agdao Market, Ilustre Market
+- durian vendors sa Magsaysay Park
+- pasalubong shops sa Aldevinco
+- SM Lanang, Abreeza Mall, NCCC Mall
+- jeepney o habal-habal fares sa Davao City
+- tuna at bangus mula sa Samal Island
 **${L.diffInstructions}:**
-**${L.forAll}:** 
-**${L.forSupport}:** 
-**${L.forAdvanced}:** 
+**${L.forAll}:** [konkretong aktibidad para sa lahat]
+**${L.forSupport}:** [simplified na bersyon na may visual aids o guide questions]
+**${L.forAdvanced}:** [extension task na hihiwalay sa grupo]
 **${L.guidingQuestions}:**
-- question 1
-- question 2
-- question 3
+- [Tanong 1 — pang-recall]
+- [Tanong 2 — pang-analysis]
+- [Tanong 3 — pang-application sa Davao City context]
 
 **PART 2 - [Activity Name] ([time])**
 [same structure]
@@ -169,11 +177,22 @@ OPPORTUNITIES_FOR_INTEGRATION:
 **Technology (Future Integration):** free tools for future use
 
 FORMATIVE_ASSESSMENT:
-**${L.description}:**
-**${L.administration}:**
-**${L.howResultsUsed}:**
-**${L.rubric}:**
-**${L.accommodation}:**
+Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
+
+**Session [N] - [Pangalan ng Assessment Tool]**
+**Paglalarawan:** [Detalyadong paglalarawan ng gawain o pagtatanong — isulat ang ACTUAL na mga tanong o instructions na ibibigay sa mga mag-aaral]
+**Halimbawa ng mga tanong o gawain:**
+1. [Actual na tanong o gawain gamit ang Davao City context]
+2. [Actual na tanong o gawain]
+3. [Actual na tanong o gawain]
+**Paraan ng pagbibigay:** [Paano ibibigay — papel, whiteboard, pangkat, oral, atbp.]
+**Paano gagamitin ang mga resulta:** [Konkretong gagawin ng guro batay sa resulta]
+**Rubrika o gabay sa pagmamarka:**
+- 4 - [Pamantayan]
+- 3 - [Pamantayan]
+- 2 - [Pamantayan]
+- 1 - [Pamantayan]
+**Mga angkop na tulong para sa iba't ibang mag-aaral:** [Accommodation para sa mahihirap na mag-aaral, ELL, advanced learners]
 
 EXTENDED_LEARNING:
 **For All Learners:** 2 tasks with Davao City context
