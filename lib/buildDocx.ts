@@ -443,19 +443,21 @@ export async function buildDocx(
               get('EXTENDED_LEARNING'),
             ),
             row2(
-              labelCell('Reflections:', 'Think about what you need to change for the next session based on what happened today. Is there something the learners are interested in exploring?\n\nAre there some things you would like to share with your co-teachers, parents, or school leaders about your classroom experience? What would you like your instructional coach to help you with?'),
-              [
-                p('After Session 1:', true),
-                emptyP(), emptyP(), emptyP(),
-                p('After Session 2:', true),
-                emptyP(), emptyP(), emptyP(),
-                p('After Session 3:', true),
-                emptyP(), emptyP(), emptyP(),
-                p('Notes to share with co-teachers, parents, or school leaders:', true),
-                emptyP(), emptyP(),
-                p('I would like my instructional coach to help me with:', true),
-                emptyP(), emptyP(),
-              ],
+              labelCell('Reflections:', '...'),
+              (() => {
+                // Parse number of sessions from the sessions string e.g. "3 sessions: ..."
+                const sessionCount = parseInt(noOfSessions) || 3;
+                const lines: Paragraph[] = [];
+                for (let i = 1; i <= sessionCount; i++) {
+                  lines.push(p(`After Session ${i}:`, true));
+                  lines.push(emptyP(), emptyP(), emptyP());
+                }
+                lines.push(p('Notes to share with co-teachers, parents, or school leaders:', true));
+                lines.push(emptyP(), emptyP());
+                lines.push(p('I would like my instructional coach to help me with:', true));
+                lines.push(emptyP(), emptyP());
+                return lines;
+              })(),
             ),
           ],
         }),

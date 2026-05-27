@@ -16,9 +16,26 @@ export default function Home() {
   const [showDonation, setShowDonation] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const LOADING_MESSAGES = [
+  '🤖 Groq AI is crafting your lesson plan...',
+  '📝 Writing learning competencies and objectives...',
+  '🎯 Designing session flow and activities...',
+  '🏙️ Adding Davao City context to examples...',
+  '📊 Building formative assessments...',
+  '🌱 Almost done — finalizing your DOCX...',
+  ];
+  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+
   const handleGenerate = async () => {
     setLoading(true);
     setStatus('generating');
+    let msgIdx = 0;
+    const msgTimer = setInterval(() => {
+      msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length;
+      setLoadingMessage(LOADING_MESSAGES[msgIdx]);
+    }, 7000);
+    // Add in the finally block or after setLoading(false):
+    clearInterval(msgTimer);
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -513,7 +530,7 @@ export default function Home() {
 
               {status === 'generating' && (
                 <div className="status-box status-loading">
-                  🤖 Groq AI is crafting your detailed lesson plan — this takes about 30–50 seconds...
+                  🤖 {loadingMessage}
                 </div>
               )}
               {status === 'success' && (

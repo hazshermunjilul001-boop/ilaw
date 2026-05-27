@@ -167,32 +167,74 @@ ABSOLUTE RULES:
 6. Use - for bullet points.
 7. Number steps as 1. 2. 3.`;
 
-    const MODELS = [
-      'llama-3.3-70b-versatile',   // best quality, try first
-      'llama-3.1-8b-instant',       // faster, smaller, separate quota
-      'gemma2-9b-it',               // Google model, separate quota
+    const GROQ_MODELS = [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+      'gemma2-9b-it',
+    ];
+
+    // OpenRouter free models as final fallback (separate quota entirely)
+    const OPENROUTER_MODELS = [
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'google/gemini-2.0-flash-exp:free',
     ];
 
     let completion: any = null;
     let lastError: any = null;
 
-    for (const model of MODELS) {
+    // ── Try Groq models first ──
+    for (const model of GROQ_MODELS) {
       try {
-        console.log('Trying model:', model);
+        console.log('Trying Groq model:', model);
         completion = await groq.chat.completions.create({
           model,
-          max_tokens: 4096,
+          max_tokens: 8192,      // raised from 4096
           temperature: 0.7,
           messages: [{ role: 'user', content: prompt }],
         });
-        console.log('Success with model:', model);
+        console.log('Success with Groq model:', model);
         break;
       } catch (err: any) {
-        console.warn(`Model ${model} failed:`, err?.message);
+        console.warn(`Groq model ${model} failed:`, err?.message);
         lastError = err;
-        // Only continue to next model if it's a rate limit error
-        if (!err?.message?.includes('rate_limit') && !err?.message?.includes('429')) {
-          throw err;
+        const isRateLimit = err?.message?.includes('rate_limit') ||
+                            err?.message?.includes('429') ||
+                            err?.status === 429;
+        if (!isRateLimit) throw err;
+      }
+    }
+
+    // ── Fallback to OpenRouter if all Groq models exhausted ──
+    if (!completion && process.env.OPENROUTER_API_KEY) {
+      for (const model of OPENROUTER_MODELS) {
+        try {
+          console.log('Trying OpenRouter model:', model);
+          const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://ilaw-generator.vercel.app',
+              'X-Title': 'ILAW Lesson Plan Generator',
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 8192,
+              temperature: 0.7,
+              messages: [{ role: 'user', content: prompt }],
+            }),
+          });
+          const orData = await orRes.json();
+          if (orData.choices?.[0]?.message?.content) {
+            // Normalize to same shape as Groq response
+            completion = { choices: [{ message: { content: orData.choices[0].message.content }, finish_reason: 'stop' }] };
+            console.log('Success with OpenRouter model:', model);
+            break;
+          }
+          lastError = new Error(orData.error?.message || `OpenRouter model ${model} returned no content`);
+        } catch (err: any) {
+          console.warn(`OpenRouter model ${model} failed:`, err?.message);
+          lastError = err;
         }
       }
     }
