@@ -11,6 +11,16 @@ export async function POST(req: Request) {
 
   const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
 
+  LANGUAGE RULE — This is critical. Follow this exactly:
+  - Look at the Learning Area provided: "${learningArea}"
+  - If the learning area is ANY of the following (or a close variation), write the ENTIRE lesson plan in FILIPINO/TAGALOG:
+    Filipino, Araling Panlipunan, AP, Edukasyon sa Pagpapakatao, EsP, MAPEH, Mother Tongue, MTB-MLE, Edukasyong Pantahanan at Pangkabuhayan, EPP, TLE (if taught in Filipino)
+  - If the learning area is English, Mathematics, Science, or any other subject taught in English, write the ENTIRE lesson plan in ENGLISH.
+  - Apply this rule consistently to EVERY section — objectives, activities, examples, instructions, reflections, everything.
+  - When writing in Filipino, use natural, professional, DepEd-appropriate Filipino — not a word-for-word translation. Write the way a Filipino master teacher would naturally write a lesson plan.
+  - Section label keys must remain in ALL_CAPS English (e.g. LEARNING_COMPETENCY:, FLOW:) so the app can parse them — but ALL content inside each section must be in the correct language.
+
+
 Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH — not a summary, not a skeleton. A substitute teacher should be able to pick this up and teach it without any other reference.
 
 Use EXACTLY these section labels (ALL CAPS, followed by colon). Do not add extra labels.
