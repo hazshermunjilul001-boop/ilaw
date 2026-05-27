@@ -167,10 +167,11 @@ ABSOLUTE RULES:
 6. Use - for bullet points.
 7. Number steps as 1. 2. 3.`;
 
-    const GROQ_MODELS = [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'gemma2-9b-it',
+    const MODELS = [
+      'llama-3.3-70b-versatile',    // best quality, try first
+      'llama4-scout-17b-16e-instruct', // Llama 4 Scout — fast, separate quota
+      'qwen-qwq-32b',               // Qwen3 32B — strong reasoning, separate quota
+      'llama-3.1-8b-instant',       // smallest, last resort
     ];
 
     // OpenRouter free models as final fallback (separate quota entirely)
