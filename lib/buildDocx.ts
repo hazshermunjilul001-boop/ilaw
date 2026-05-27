@@ -121,6 +121,10 @@ function toParas(text: string): Paragraph[] {
       /^(Other Learning Areas|Special Topics|Career Awareness|Values Integration|Technology):?$/i.test(trimmed) ||
       /^(Differentiated Instructions|Synthesis and Reflection):?$/i.test(trimmed) ||
       /^(For All Learners \(Remediation\)|For Advanced Learners \(Enrichment\)):?$/i.test(trimmed) ||
+      /^(Objective Link|Detailed teacher instructions|Student actions and expected responses):?$/i.test(trimmed) ||
+      /^(Contextualized examples?|Sample warm-up question|Sample tasks or questions):?$/i.test(trimmed) ||
+      /^(Description|Administration|How results are used|Rubric or scoring guide|Accommodations for diverse learners):?$/i.test(trimmed) ||
+      /^(Closing discussion|Exit ticket|Real-life connection):?$/i.test(trimmed) ||
 
       // ── Filipino/Tagalog subheadings ──
       /^(Kognitibo|Sikolohikal|Psikomotor|Affective|Pandama|Pagpapahalaga):?$/i.test(trimmed) ||

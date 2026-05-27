@@ -58,6 +58,8 @@ export async function POST(req: Request) {
       psychomotor:          'Sikolohikal',
       affective:            'Pandama',
       byEndOfSession:       'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
+      warmupQuestion:   'Halimbawa ng tanong para sa warm-up',
+      sampleTasks:      'Halimbawa ng mga tanong o gawain',
     } : {
       objectiveLink:        'Objective Link',
       teacherInstructions:  'Detailed teacher instructions',
@@ -83,6 +85,8 @@ export async function POST(req: Request) {
       psychomotor:          'Psychomotor',
       affective:            'Affective',
       byEndOfSession:       'By the end of this session, the learners will be able to',
+      warmupQuestion:   'Sample warm-up question',
+      sampleTasks:      'Sample tasks or questions',
     };
 
     const langRule = isFilipino
@@ -130,7 +134,7 @@ Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
 3. [Paano mag-re-respond ang mga mag-aaral]
 4. [Paano ito nag-a-activate ng prior knowledge]
 **Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
-**Halimbawa ng tanong para sa warm-up:** "[Isulat ang actual na tanong gamit ang Davao City context]"
+**${L.warmupQuestion}:** "[Write the actual warm-up question using Davao City context]"
 
 FLOW:
 Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi ng bawat sesyon:
@@ -138,10 +142,10 @@ Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bah
 **SESSION [N] - [Pamagat] ([kabuuang oras])**
 
 **BAHAGI 1 - [Pangalan ng Aktibidad] ([oras])**
-**Kaugnay na Layunin:** [isulat ang partikular na layunin]
-**Mga tagubilin para sa guro:** Isulat ang WORD-FOR-WORD na mga tagubilin — ano mismo ang sasabihin ng guro, halimbawa: "Tingnan ninyo ang mga larawan ng merkado sa Bankerohan. Sino sa inyo ang nakabili doon? Bakit mas mura ang gulay sa Bankerohan kumpara sa SM Lanang?"
-**Mga aksyon ng mag-aaral at inaasahang tugon:** Isulat ang eksaktong inaasahang sagot ng mga mag-aaral, halimbawa: "Sasabihin ng mga mag-aaral: 'Mas mura dahil maraming nagbebenta ng parehong produkto.'"
-**Mga halimbawang kontekstwalisado (Davao City):** Isulat ang TATLO o higit pang kongkretong halimbawa gamit ang mga lugar sa Davao City tulad ng:
+**${L.objectiveLink}:**
+**${L.teacherInstructions}:**
+**${L.studentActions}:**
+**${L.exampleProblems}:**
 - Bankerohan Market, Agdao Market, Ilustre Market
 - durian vendors sa Magsaysay Park
 - pasalubong shops sa Aldevinco
@@ -180,19 +184,12 @@ FORMATIVE_ASSESSMENT:
 Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
 
 **Session [N] - [Pangalan ng Assessment Tool]**
-**Paglalarawan:** [Detalyadong paglalarawan ng gawain o pagtatanong — isulat ang ACTUAL na mga tanong o instructions na ibibigay sa mga mag-aaral]
-**Halimbawa ng mga tanong o gawain:**
-1. [Actual na tanong o gawain gamit ang Davao City context]
-2. [Actual na tanong o gawain]
-3. [Actual na tanong o gawain]
-**Paraan ng pagbibigay:** [Paano ibibigay — papel, whiteboard, pangkat, oral, atbp.]
-**Paano gagamitin ang mga resulta:** [Konkretong gagawin ng guro batay sa resulta]
-**Rubrika o gabay sa pagmamarka:**
-- 4 - [Pamantayan]
-- 3 - [Pamantayan]
-- 2 - [Pamantayan]
-- 1 - [Pamantayan]
-**Mga angkop na tulong para sa iba't ibang mag-aaral:** [Accommodation para sa mahihirap na mag-aaral, ELL, advanced learners]
+**${L.description}:**
+**${L.sampleTasks}:**
+**${L.administration}:**
+**${L.howResultsUsed}:**
+**${L.rubric}:**
+**${L.accommodation}:**
 
 EXTENDED_LEARNING:
 **For All Learners:** 2 tasks with Davao City context
