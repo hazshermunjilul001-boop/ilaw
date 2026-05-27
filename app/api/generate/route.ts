@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
 
     const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
-${languageRule}
+${langRule}
 Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach it without any other reference.
 
 Use EXACTLY these section labels (ALL CAPS, followed by colon):
