@@ -11,14 +11,48 @@ export async function POST(req: Request) {
 
   const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
 
-  LANGUAGE RULE — This is critical. Follow this exactly:
-  - Look at the Learning Area provided: "${learningArea}"
-  - If the learning area is ANY of the following (or a close variation), write the ENTIRE lesson plan in FILIPINO/TAGALOG:
-    Filipino, Araling Panlipunan, AP, Edukasyon sa Pagpapakatao, EsP, MAPEH, Mother Tongue, MTB-MLE, Edukasyong Pantahanan at Pangkabuhayan, EPP, TLE (if taught in Filipino)
-  - If the learning area is English, Mathematics, Science, or any other subject taught in English, write the ENTIRE lesson plan in ENGLISH.
-  - Apply this rule consistently to EVERY section — objectives, activities, examples, instructions, reflections, everything.
-  - When writing in Filipino, use natural, professional, DepEd-appropriate Filipino — not a word-for-word translation. Write the way a Filipino master teacher would naturally write a lesson plan.
-  - Section label keys must remain in ALL_CAPS English (e.g. LEARNING_COMPETENCY:, FLOW:) so the app can parse them — but ALL content inside each section must be in the correct language.
+  LANGUAGE RULE — Sundin ito nang mahigpit:
+  - Tingnan ang Learning Area: "${learningArea}"
+  - Kung ang Learning Area ay isa sa mga ito (o katulad nito):
+    Filipino, Araling Panlipunan, AP, Edukasyon sa Pagpapakatao, EsP, MAPEH,
+    Mother Tongue, MTB-MLE, EPP, TLE (kung itinuturo sa Filipino)
+    → Isulat ang BUONG lesson plan sa FILIPINO/TAGALOG.
+    → Isinalin ang LAHAT — kabilang ang mga subheading tulad ng:
+       "For All Learners" → "Para sa Lahat ng Mag-aaral"
+       "For Learners Who Need Support" → "Para sa Mga Mag-aaral na Nangangailangan ng Tulong"
+       "For Advanced Learners" → "Para sa mga Advanced na Mag-aaral"
+       "Guiding Questions" → "Mga Gabay na Tanong"
+       "Objective Link" → "Kaugnay na Layunin"
+       "Materials" → "Mga Kagamitan"
+       "Procedure" → "Mga Hakbang"
+       "Purpose" → "Layunin ng Aktibidad"
+       "Strengths and Prior Knowledge" → "Mga Kalakasan at Nakaraang Kaalaman"
+       "Interests and Engagement Hooks" → "Mga Interes at Pakikipag-ugnayan"
+       "Possible Barriers to Learning" → "Mga Hadlang sa Pagkatuto"
+       "Accommodations and Support" → "Mga Angkop na Tulong at Suporta"
+       "Primary Materials" → "Pangunahing Kagamitan"
+       "Reference Materials" → "Mga Sanggunian"
+       "Emergency Alternatives" → "Mga Alternatibo sa Emerhensya"
+       "Other Learning Areas" → "Iba pang Larangang Pang-aralan"
+       "Special Topics / Career Awareness" → "Mga Espesyal na Paksa / Kamalayan sa Karera"
+       "Values Integration" → "Integrasyon ng mga Pagpapahalaga"
+       "Technology (Future Integration)" → "Teknolohiya (Hinaharap na Integrasyon)"
+       "For All Learners (Remediation)" → "Para sa Mga Nangangailangan ng Remedyasyon"
+       "For Advanced Learners (Enrichment)" → "Para sa mga Advanced na Mag-aaral (Pagpapayaman)"
+       "Synthesis and Reflection" → "Buod at Repleksyon"
+       "Differentiated Instructions" → "Mga Naka-differentiate na Tagubilin"
+       "Guiding Questions" → "Mga Gabay na Tanong"
+       "After Session" → "Pagkatapos ng Sesyon"
+       "Notes to share" → "Mga Tala para ibahagi"
+       "I would like my instructional coach" → "Nais kong tulungan ako ng aking instructional coach"
+    → Gumamit ng natural, propesyonal na Filipino — tulad ng isinusulat ng isang master teacher ng DepEd.
+    → HUWAG magsulat ng Ingles kahit isang pangungusap sa loob ng mga seksyon.
+
+  - Kung ang Learning Area ay English, Mathematics, Science, o iba pang subject na itinuturo sa Ingles
+    → Isulat ang BUONG lesson plan sa ENGLISH.
+
+  - MAHALAGA: Ang mga section label key (LEARNING_COMPETENCY:, FLOW:, atbp.) ay dapat manatiling
+    ALL CAPS ENGLISH para ma-parse ng app — ngunit ang LAHAT ng nilalaman sa loob ay dapat nasa tamang wika.
 
 
 Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH — not a summary, not a skeleton. A substitute teacher should be able to pick this up and teach it without any other reference.

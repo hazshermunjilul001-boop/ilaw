@@ -109,16 +109,32 @@ function toParas(text: string): Paragraph[] {
     //   Session N / Part N / Materials / Procedure / Purpose / Guiding Questions
     //   Any line that is entirely bold (**...**)
     const isSubheading =
+      // English bold-only line **Text:**
       /^\*\*[^*]+\*\*:?\s*$/.test(trimmed) ||
+
+      // ── English subheadings ──
       /^(Cognitive|Psychomotor|Affective):?$/i.test(trimmed) ||
-      /^\*\*(Cognitive|Psychomotor|Affective)\*\*:?$/i.test(trimmed) ||
-      /^\*\*(For All Learners|For Learners Who Need|For Advanced Learners|For Learners Who Want)[^*]*\*\*:?$/i.test(trimmed) ||
-      /^\*\*(SESSION|PART|Materials|Procedure|Purpose|Objective Link|Guiding Questions|Strengths|Interests|Possible Barriers|Accommodations|Primary Materials|Reference Materials|Emergency|Other Learning|Special Topics|Values Integration|Technology|Remediation|Enrichment)[^*]*\*\*:?$/i.test(trimmed) ||
       /^(For All Learners|For Learners Who Need Support|For Advanced Learners|For Learners Who Want to Go Deeper):?$/i.test(trimmed) ||
       /^(Materials|Procedure|Purpose|Guiding Questions|Objective Link):?$/i.test(trimmed) ||
       /^(Strengths and Prior Knowledge|Interests and Engagement Hooks|Possible Barriers to Learning|Accommodations and Support):?$/i.test(trimmed) ||
       /^(Primary Materials|Reference Materials|Emergency Alternatives):?$/i.test(trimmed) ||
-      /^(Other Learning Areas|Special Topics|Values Integration|Career Awareness|Technology):?$/i.test(trimmed);
+      /^(Other Learning Areas|Special Topics|Career Awareness|Values Integration|Technology):?$/i.test(trimmed) ||
+      /^(Differentiated Instructions|Synthesis and Reflection):?$/i.test(trimmed) ||
+      /^(For All Learners \(Remediation\)|For Advanced Learners \(Enrichment\)):?$/i.test(trimmed) ||
+
+      // ── Filipino/Tagalog subheadings ──
+      /^(Kognitibo|Sikolohikal|Psikomotor|Affective|Pandama|Pagpapahalaga):?$/i.test(trimmed) ||
+      /^Para sa (Lahat ng Mag-aaral|Mga Mag-aaral na Nangangailangan|mga Advanced na Mag-aaral|Mga Nangangailangan ng Remedyasyon|mga Advanced na Mag-aaral \(Pagpapayaman\)):?$/i.test(trimmed) ||
+      /^(Mga Kagamitan|Mga Hakbang|Layunin ng Aktibidad|Mga Gabay na Tanong|Kaugnay na Layunin):?$/i.test(trimmed) ||
+      /^(Mga Kalakasan at Nakaraang Kaalaman|Mga Interes at Pakikipag-ugnayan|Mga Hadlang sa Pagkatuto|Mga Angkop na Tulong at Suporta):?$/i.test(trimmed) ||
+      /^(Pangunahing Kagamitan|Mga Sanggunian|Mga Alternatibo sa Emerhensya):?$/i.test(trimmed) ||
+      /^(Iba pang Larangang Pang-aralan|Mga Espesyal na Paksa|Kamalayan sa Karera|Integrasyon ng mga Pagpapahalaga|Teknolohiya):?$/i.test(trimmed) ||
+      /^(Mga Naka-differentiate na Tagubilin|Buod at Repleksyon):?$/i.test(trimmed) ||
+      /^(Pagkatapos ng Sesyon \d|Mga Tala para ibahagi|Nais kong tulungan):?$/i.test(trimmed) ||
+
+      // ── Session/Part headers (both English and Filipino) ──
+      /^\*\*(SESSION|SESYON|PART|BAHAGI)\s+\d+/i.test(trimmed) ||
+      /^(SESSION|SESYON|PART|BAHAGI)\s+\d+/i.test(trimmed);
 
     if (isSubheading) {
       const clean = trimmed.replace(/\*\*/g, '').replace(/:$/, '');
