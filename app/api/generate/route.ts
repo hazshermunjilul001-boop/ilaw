@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       objectiveLink:        'Objective Link',
       teacherInstructions:  'Detailed teacher instructions',
       studentActions:       'Student actions and expected responses',
-      exampleProblems:      'Contextualized example problems using Davao City landmarks',
+      exampleProblems:      'Contextualized example problems using Residence City landmarks',
       diffInstructions:     'Differentiated Instructions',
      forAll:               'For All Learners',
       forSupport:           'For Learners Who Need Support',
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
          Ang lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
       : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
 
-    const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for Davao City public secondary schools.
+    const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for DepEd public secondary schools.
 ${langRule}
 Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach it without any other reference.
 
@@ -134,7 +134,7 @@ Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
 3. [Paano mag-re-respond ang mga mag-aaral]
 4. [Paano ito nag-a-activate ng prior knowledge]
 **Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
-**${L.warmupQuestion}:** "[Write the actual warm-up question using Davao City context]"
+**${L.warmupQuestion}:** "[Write the actual warm-up question using Residence City context]"
 
 FLOW:
 Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi ng bawat sesyon:
@@ -150,7 +150,7 @@ Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bah
 - durian vendors sa Magsaysay Park
 - pasalubong shops sa Aldevinco
 - SM Lanang, Abreeza Mall, NCCC Mall
-- jeepney o habal-habal fares sa Davao City
+- jeepney o habal-habal fares sa Residence City
 - tuna at bangus mula sa Samal Island
 **${L.diffInstructions}:**
 **${L.forAll}:** [konkretong aktibidad para sa lahat]
@@ -159,7 +159,7 @@ Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bah
 **${L.guidingQuestions}:**
 - [Tanong 1 — pang-recall]
 - [Tanong 2 — pang-analysis]
-- [Tanong 3 — pang-application sa Davao City context]
+- [Tanong 3 — pang-application sa Residence City context]
 
 **PART 2 - [Activity Name] ([time])**
 [same structure]
@@ -176,7 +176,7 @@ LEARNING_RESOURCES:
 
 OPPORTUNITIES_FOR_INTEGRATION:
 **Other Learning Areas:** at least 3 subject connections
-**Special Topics / Career Awareness:** at least 2 Davao City career connections
+**Special Topics / Career Awareness:** at least 2 Residence City career connections
 **Values Integration:** Filipino values connected to the lesson
 **Technology (Future Integration):** free tools for future use
 
@@ -192,7 +192,7 @@ Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
 **${L.accommodation}:**
 
 EXTENDED_LEARNING:
-**For All Learners:** 2 tasks with Davao City context
+**For All Learners:** 2 tasks with Residence City context
 **For Learners Who Need Reinforcement (Remediation):** 2 scaffolded tasks
 **For Advanced Learners (Enrichment):** 2 challenging tasks
 
@@ -207,7 +207,7 @@ LESSON DETAILS:
 - Classroom Details: ${classroomDetails}
 
 ABSOLUTE RULES:
-1. Every example MUST use a specific Davao City context.
+1. Every example MUST use a specific Residence City context.
 2. If no projector/TV in classroom details, use ONLY board, chalk, cartolina, flashcards, string, ruler.
 3. Every FLOW section MUST include Differentiated Instructions with all three levels.
 4. Do NOT write placeholder text - write actual content.
