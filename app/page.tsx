@@ -20,7 +20,7 @@ export default function Home() {
   '🤖 Groq AI is crafting your lesson plan...',
   '📝 Writing learning competencies and objectives...',
   '🎯 Designing session flow and activities...',
-  '🏙️ Adding Davao City context to examples...',
+  '🏙️ Adding Residence City context to examples...',
   '📊 Building formative assessments...',
   '🌱 Almost done — finalizing your DOCX...',
   ];
@@ -69,7 +69,7 @@ export default function Home() {
     { key: 'gradeSection', label: 'Grade Level & Section', placeholder: 'e.g. Grade 10 — Rizal', icon: '🏫', area: false },
     { key: 'competency', label: 'Learning Competency (MELC)', placeholder: 'Paste the full MELC text and code here...', icon: '🎯', area: true },
     { key: 'sessions', label: 'No. of Sessions & Duration', placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min', icon: '⏱️', area: false },
-    { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, Davao City context...', icon: '🏡', area: true },
+    { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, Residence City context...', icon: '🏡', area: true },
   ];
 
   return (
@@ -548,7 +548,7 @@ export default function Home() {
 
           {/* ── FOOTER ── */}
           <footer className="footer">
-            <p>Made with 💜 for DepEd teachers in <strong>Davao City</strong></p>
+            <p>Made with 💜 for DepEd teachers in <strong>Philippines</strong></p>
             <p style={{ marginTop: 4 }}>
               ILAW Framework · SY 2026–2027 · Created by <strong>Hazsher Briz Munjilul</strong>
             </p>
