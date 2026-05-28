@@ -460,14 +460,14 @@ export default function Home() {
           {/* ── HEADER ── */}
           <header className="header">
             <div className="header-badge">✦ DepEd ILAW Framework ✦</div>
-            <h1>ILAW Lesson Plan<br /><span>AI Generator</span></h1>
+            <h1>ILAW Lesson Plan<br /><span>Generator</span></h1>
             <p className="header-sub">
-              Generate detailed, contextualized, and classroom-ready ILAW-format lesson plans in seconds — tailored for Davao City teachers.
+              Generate detailed, contextualized, and classroom-ready ILAW-format lesson plans in seconds — tailored for DepEd teachers.
             </p>
             <div className="header-meta">
               <span className="creator-tag">Crafted by <strong>Hazsher Briz Munjilul</strong></span>
               <span className="creator-tag" style={{ color: '#c4b5fd' }}>•</span>
-              <span className="creator-tag">Powered by Groq AI</span>
+              <span className="creator-tag">Powered by Groq</span>
               <button className="donate-btn" onClick={() => setShowDonation(true)}>
                 💝 Support this tool
               </button>
