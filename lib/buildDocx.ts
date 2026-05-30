@@ -355,71 +355,23 @@ function parseSection(content: string, tag: string): string {
     'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING',
   ];
 
-  // Try multiple patterns the AI might use:
-  // 1. "REFERENCES:" at start of line
-  // 2. "**REFERENCES**:" or "**REFERENCES:**"
-  // 3. "## REFERENCES" or "### REFERENCES"
-  // 4. "REFERENCES :" with a space before colon
-  const patterns = [
-    new RegExp(`^${tag}:\\s*`, 'm'),
-    new RegExp(`^\\*\\*${tag}\\*\\*:?\\s*`, 'm'),
-    new RegExp(`^#{1,3}\\s*${tag}:?\\s*`, 'm'),
-    new RegExp(`^${tag}\\s*:\\s*`, 'm'),
-    new RegExp(`\\n${tag}:\\s*`),
-    new RegExp(`\\n\\*\\*${tag}\\*\\*:?\\s*`),
-  ];
+  // Strip all ** from the entire content first, then parse cleanly
+  const stripped = content.replace(/\*\*/g, '');
 
-  let startIdx = -1;
-  let matchLength = 0;
+  const startTag = tag + ':';
+  const startIdx = stripped.indexOf(startTag);
+  if (startIdx === -1) return '';
 
-  for (const pattern of patterns) {
-    const match = content.match(pattern);
-    if (match && match.index !== undefined) {
-      startIdx = match.index;
-      matchLength = match[0].length;
-      break;
-    }
-  }
+  const textStart = startIdx + startTag.length;
+  let endIdx = stripped.length;
 
-  if (startIdx === -1) {
-    // Last resort: case-insensitive search
-    const lowerContent = content.toLowerCase();
-    const lowerTag = tag.toLowerCase();
-    const idx = lowerContent.indexOf('\n' + lowerTag + ':');
-    if (idx !== -1) {
-      startIdx = idx + 1;
-      matchLength = lowerTag.length + 1;
-    } else {
-      return '';
-    }
-  }
-
-  const textStart = startIdx + matchLength;
-  let endIdx = content.length;
-
-  // Find where the next section starts
   for (const other of ALL_TAGS) {
     if (other === tag) continue;
-    const otherPatterns = [
-      new RegExp(`\\n${other}:\\s`),
-      new RegExp(`\\n\\*\\*${other}\\*\\*:`),
-      new RegExp(`\\n#{1,3}\\s*${other}`),
-      new RegExp(`\\n${other}\\s*:`),
-    ];
-    for (const op of otherPatterns) {
-      const m = content.slice(textStart).match(op);
-      if (m && m.index !== undefined) {
-        const pos = textStart + m.index;
-        if (pos < endIdx) endIdx = pos;
-      }
-    }
+    const pos = stripped.indexOf(other + ':', textStart);
+    if (pos !== -1 && pos < endIdx) endIdx = pos;
   }
 
-  return content
-    .slice(textStart, endIdx)
-    .trim()
-    .replace(/^\*{1,2}\s*/, '')
-    .replace(/\s*\*{1,2}$/, '');
+  return stripped.slice(textStart, endIdx).trim();
 }
 
 // ── Main export ────────────────────────────────────────────────────
