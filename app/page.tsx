@@ -499,9 +499,6 @@ export default function Home() {
                     <input
                       type="text"
                       className="field-input"
-                      placeholder={f.placeholder}
-                      value={(form as any)[f.key]}
-                      onChange={e => setForm({ ...form, [f.key]: e.target.value }
                       placeholder="City/Municipality (e.g. Davao City, Cebu City, Manila...)"
                       value={schoolCity}
                       onChange={e => setSchoolCity(e.target.value)}
