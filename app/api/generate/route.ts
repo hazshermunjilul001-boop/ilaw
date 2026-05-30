@@ -13,9 +13,6 @@ export async function POST(req: Request) {
     console.log('--- Generate request received ---');
 
     const body = await req.json();
-    console.log('Learning Area:', body.learningArea);
-    console.log('Lesson Name:', body.lessonName);
-
     const {
       lessonName, learningArea, teacherName, gradeSection,
       competency, sessions, classroomDetails
@@ -25,178 +22,182 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not found in environment' }, { status: 500 });
-    }
-
-    console.log('Sending to Groq...');
-
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
     console.log('Language mode:', isFilipino ? 'FILIPINO' : 'ENGLISH');
 
-    // ── Language-specific structural labels ──────────────────────────
     const L = isFilipino ? {
-      objectiveLink:        'Kaugnay na Layunin',
-      teacherInstructions:  'Mga tagubilin para sa guro',
-      studentActions:       'Mga aksyon ng mag-aaral at inaasahang tugon',
-      exampleProblems:      'Mga halimbawang kontekstwalisado',
-      diffInstructions:     'Mga Naka-differentiate na Tagubilin',
-      forAll:               'Para sa Lahat ng Mag-aaral',
-      forSupport:           'Para sa Mga Nangangailangan ng Tulong',
-      forAdvanced:          'Para sa mga Advanced na Mag-aaral',
-      guidingQuestions:     'Mga Gabay na Tanong',
-      closingDiscussion:    'Pangwakas na talakayan',
-      exitTicket:           'Exit ticket',
-      realLifeConnection:   'Koneksyon sa tunay na buhay',
-      description:          'Paglalarawan',
-      administration:       'Paraan ng pagbibigay',
-      howResultsUsed:       'Paano gagamitin ang mga resulta',
-      rubric:               'Rubrika o gabay sa pagmamarka',
-      accommodation:        'Mga angkop na tulong para sa iba\'t ibang mag-aaral',
-      sessionLabel:         'SESYON',
-      partLabel:            'BAHAGI',
-      synthesisLabel:       'Buod at Repleksyon',
-      cognitive:            'Kognitibo',
-      psychomotor:          'Sikolohikal',
-      affective:            'Pandama',
-      byEndOfSession:       'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
-      warmupQuestion:   'Halimbawa ng tanong para sa warm-up',
-      sampleTasks:      'Halimbawa ng mga tanong o gawain',
+      objectiveLink: 'Kaugnay na Layunin',
+      diffInstructions: 'Mga Naka-differentiate na Tagubilin',
+      forAll: 'Para sa Lahat ng Mag-aaral',
+      forSupport: 'Para sa Mga Nangangailangan ng Tulong',
+      forAdvanced: 'Para sa mga Advanced na Mag-aaral',
+      guidingQuestions: 'Mga Gabay na Tanong',
+      sessionLabel: 'SESYON',
+      partLabel: 'BAHAGI',
+      synthesisLabel: 'Buod at Repleksyon',
+      cognitive: 'Kognitibo',
+      psychomotor: 'Sikolohikal',
+      affective: 'Pandama',
+      materials: 'Mga Kagamitan',
+      procedure: 'Mga Hakbang',
+      purpose: 'Layunin ng Aktibidad',
+      description: 'Paglalarawan',
+      administration: 'Paraan ng pagbibigay',
+      howResultsUsed: 'Paano gagamitin ang mga resulta',
+      rubric: 'Rubrika o gabay sa pagmamarka',
+      accommodation: 'Mga angkop na tulong',
+      strengthsPrior: 'Mga Kalakasan at Nakaraang Kaalaman',
+      interests: 'Mga Interes at Pakikipag-ugnayan',
+      barriers: 'Mga Hadlang sa Pagkatuto',
+      accommodations: 'Mga Angkop na Tulong at Suporta',
+      primaryMaterials: 'Pangunahing Kagamitan',
+      references: 'Mga Sanggunian',
+      emergency: 'Mga Alternatibo sa Emerhensya',
+      otherAreas: 'Iba pang Larangang Pang-aralan',
+      specialTopics: 'Mga Espesyal na Paksa / Kamalayan sa Karera',
+      values: 'Integrasyon ng mga Pagpapahalaga',
+      technology: 'Teknolohiya (Hinaharap na Integrasyon)',
+      forRemediation: 'Para sa Mga Nangangailangan ng Remedyasyon',
+      forEnrichment: 'Para sa mga Advanced na Mag-aaral (Pagpapayaman)',
+      closingDiscussion: 'Pangwakas na talakayan',
+      exitTicket: 'Exit ticket',
+      realLife: 'Koneksyon sa tunay na buhay',
     } : {
-      objectiveLink:        'Objective Link',
-      teacherInstructions:  'Detailed teacher instructions',
-      studentActions:       'Student actions and expected responses',
-      exampleProblems:      'Contextualized example problems using Residence City landmarks',
-      diffInstructions:     'Differentiated Instructions',
-     forAll:               'For All Learners',
-      forSupport:           'For Learners Who Need Support',
-      forAdvanced:          'For Advanced Learners',
-      guidingQuestions:     'Guiding Questions',
-      closingDiscussion:    'Closing discussion',
-      exitTicket:           'Exit ticket',
-      realLifeConnection:   'Real-life connection',
-      description:          'Description',
-      administration:       'Administration',
-      howResultsUsed:       'How results are used',
-      rubric:               'Rubric or scoring guide',
-      accommodation:        'Accommodation for diverse learners',
-      sessionLabel:         'SESSION',
-      partLabel:            'PART',
-      synthesisLabel:       'Synthesis and Reflection',
-      cognitive:            'Cognitive',
-      psychomotor:          'Psychomotor',
-      affective:            'Affective',
-      byEndOfSession:       'By the end of this session, the learners will be able to',
-      warmupQuestion:   'Sample warm-up question',
-      sampleTasks:      'Sample tasks or questions',
+      objectiveLink: 'Objective Link',
+      diffInstructions: 'Differentiated Instructions',
+      forAll: 'For All Learners',
+      forSupport: 'For Learners Who Need Support',
+      forAdvanced: 'For Advanced Learners',
+      guidingQuestions: 'Guiding Questions',
+      sessionLabel: 'SESSION',
+      partLabel: 'PART',
+      synthesisLabel: 'Synthesis and Reflection',
+      cognitive: 'Cognitive',
+      psychomotor: 'Psychomotor',
+      affective: 'Affective',
+      materials: 'Materials',
+      procedure: 'Procedure',
+      purpose: 'Purpose',
+      description: 'Description',
+      administration: 'Administration',
+      howResultsUsed: 'How results are used',
+      rubric: 'Rubric or scoring guide',
+      accommodation: 'Accommodation for diverse learners',
+      strengthsPrior: 'Strengths and Prior Knowledge',
+      interests: 'Interests and Engagement Hooks',
+      barriers: 'Possible Barriers to Learning',
+      accommodations: 'Accommodations and Support',
+      primaryMaterials: 'Primary Materials',
+      references: 'Reference Materials',
+      emergency: 'Emergency Alternatives',
+      otherAreas: 'Other Learning Areas',
+      specialTopics: 'Special Topics / Career Awareness',
+      values: 'Values Integration',
+      technology: 'Technology (Future Integration)',
+      forRemediation: 'For Learners Who Need Reinforcement (Remediation)',
+      forEnrichment: 'For Advanced Learners (Enrichment)',
+      closingDiscussion: 'Closing discussion',
+      exitTicket: 'Exit ticket',
+      realLife: 'Real-life connection',
     };
 
     const langRule = isFilipino
-      ? `PANUNTUNAN SA WIKA: Isulat ang BUONG nilalaman sa natural, propesyonal na FILIPINO/TAGALOG. 
-         Bawal ang Ingles sa loob ng mga seksyon maliban sa mga naka-ALL CAPS na section key labels (FLOW:, LEARNING_OBJECTIVES:, atbp.) at sa mga terminolohiyang teknikal na walang Filipino equivalent (hal. graph, demand curve).
-         Ang lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
+      ? `PANUNTUNAN SA WIKA: Isulat ang BUONG nilalaman sa natural, propesyonal na FILIPINO/TAGALOG.
+         Bawal ang Ingles sa loob ng mga seksyon maliban sa mga ALL CAPS section key labels at teknikal na terminolohiya.
+         Lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
       : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
 
-    const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for DepEd public secondary schools.
-${langRule}
-Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach it without any other reference.
+    const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for DepEd public secondary schools in Davao City.
 
-Use EXACTLY these section labels (ALL CAPS, followed by colon):
+${langRule}
+
+Write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach without any other reference.
+
+Use EXACTLY these section labels (ALL CAPS followed by colon). Do not skip any:
 
 REFERENCES:
 List 4-6 specific references with page numbers and MELC code.
 
 DECLARATION_AI:
-3-4 sentences about AI assistance, teacher review, and DO 3 s.2026 Annex A compliance.
+3-4 sentences: AI (Groq/Gemini AI) assisted in generating this plan, teacher reviewed and adapted all content, complies with DO 3 s.2026 Annex A.
 
 LEARNING_COMPETENCY:
 Full MELC competency text, MELC code, Content Standard, and Performance Standard.
 
 LEARNING_OBJECTIVES:
-For EACH session under bold session headers, write at least 3 objectives each for Cognitive, Psychomotor, and Affective domains. Use "By the end of this session, the learners will be able to..." format.
-**${L.cognitive}:** ${L.byEndOfSession}...
-**${L.psychomotor}:** ${L.byEndOfSession}...
-**${L.affective}:** ${L.byEndOfSession}...
+For EACH session under bold session headers, write at least 3 objectives for each domain:
+**${L.cognitive}:** (knowledge and understanding)
+**${L.psychomotor}:** (skills and tasks)
+**${L.affective}:** (values and attitudes)
 
 LEARNER_CONTEXT:
-Write 4 subsections:
-**Strengths and Prior Knowledge:** at least 3 bullets
-**Interests and Engagement Hooks:** at least 3 bullets
-**Possible Barriers to Learning:** at least 4 bullets
-**Accommodations and Support:** at least 4 bullets
+**${L.strengthsPrior}:** at least 3 bullets
+**${L.interests}:** at least 3 bullets
+**${L.barriers}:** at least 4 bullets
+**${L.accommodations}:** at least 4 bullets
 
 PRE_LESSON:
-Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
-
-**Session [N] - "[Pangalan ng Aktibidad]" ([oras])**
-**Materials:** [listahan]
-**Procedure:**
-1. [Eksaktong hakbang — ano ang gagawin ng guro]
-2. [Ano ang sasabihin ng guro — word-for-word kung posible]
-3. [Paano mag-re-respond ang mga mag-aaral]
-4. [Paano ito nag-a-activate ng prior knowledge]
-**Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
-**${L.warmupQuestion}:** "[Write the actual warm-up question using Residence City context]"
+For EACH session write:
+**[Session label] [N] - "[Activity Name]" ([minutes])**
+**${L.materials}:** list all needed
+**${L.procedure}:**
+1. exact step
+2. what teacher says/does
+3. student response
+4. how it activates prior knowledge
+**${L.purpose}:** why this is effective pedagogically
 
 FLOW:
-Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi ng bawat sesyon:
+Complete lesson flow for ALL sessions:
 
-**SESSION [N] - [Pamagat] ([kabuuang oras])**
+**${L.sessionLabel} [N] - [Title] ([total time])**
 
-**BAHAGI 1 - [Pangalan ng Aktibidad] ([oras])**
+**${L.partLabel} 1 - [Activity Name] ([time])**
 **${L.objectiveLink}:**
-**${L.teacherInstructions}:**
-**${L.studentActions}:**
-**${L.exampleProblems}:**
-- Bankerohan Market, Agdao Market, Ilustre Market
-- durian vendors sa Magsaysay Park
-- pasalubong shops sa Aldevinco
-- SM Lanang, Abreeza Mall, NCCC Mall
-- jeepney o habal-habal fares sa Residence City
-- tuna at bangus mula sa Samal Island
+- detailed teacher instructions (what to say, draw, demonstrate)
+- student actions and expected responses
+- at least 3 specific Davao City contextualized examples (Bankerohan Market, Samal Island, Mount Apo, Davao Port, SM Lanang, Kadayawan Festival, habal-habal, durian vendors, tuna fishing, etc.)
 **${L.diffInstructions}:**
-**${L.forAll}:** [konkretong aktibidad para sa lahat]
-**${L.forSupport}:** [simplified na bersyon na may visual aids o guide questions]
-**${L.forAdvanced}:** [extension task na hihiwalay sa grupo]
+**${L.forAll}:** concrete activity for everyone
+**${L.forSupport}:** simplified version with visual aids or guide questions
+**${L.forAdvanced}:** extension task
 **${L.guidingQuestions}:**
-- [Tanong 1 — pang-recall]
-- [Tanong 2 — pang-analysis]
-- [Tanong 3 — pang-application sa Residence City context]
+- recall question
+- analysis question
+- application question using Davao City context
 
-**PART 2 - [Activity Name] ([time])**
+**${L.partLabel} 2 - [Activity Name] ([time])**
 [same structure]
 
-**PART 3 - Synthesis and Reflection ([time])**
-- closing discussion
-- exit ticket
-- real-life connection
+**${L.partLabel} 3 - ${L.synthesisLabel} ([time])**
+**${L.closingDiscussion}:** discussion questions
+**${L.exitTicket}:** describe the task
+**${L.realLife}:** connection to Davao City daily life
 
 LEARNING_RESOURCES:
-**Primary Materials:** bullets
-**Reference Materials:** bullets with page numbers
-**Emergency Alternatives:** at least 3 contingency plans
+**${L.primaryMaterials}:** detailed bullets of all physical materials
+**${L.references}:** DepEd LM and TG with specific page numbers
+**${L.emergency}:** at least 3 specific contingency plans
 
 OPPORTUNITIES_FOR_INTEGRATION:
-**Other Learning Areas:** at least 3 subject connections
-**Special Topics / Career Awareness:** at least 2 Residence City career connections
-**Values Integration:** Filipino values connected to the lesson
-**Technology (Future Integration):** free tools for future use
+**${L.otherAreas}:** at least 3 subject connections
+**${L.specialTopics}:** at least 2 Davao City career connections
+**${L.values}:** Filipino values connected to the lesson
+**${L.technology}:** free tools like GeoGebra, Google Maps, Canva for future use
 
 FORMATIVE_ASSESSMENT:
-Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
-
-**Session [N] - [Pangalan ng Assessment Tool]**
+For EACH session:
+**[Session label] [N] - [Assessment Tool Name]**
 **${L.description}:**
-**${L.sampleTasks}:**
 **${L.administration}:**
 **${L.howResultsUsed}:**
 **${L.rubric}:**
 **${L.accommodation}:**
 
 EXTENDED_LEARNING:
-**For All Learners:** 2 tasks with Residence City context
-**For Learners Who Need Reinforcement (Remediation):** 2 scaffolded tasks
-**For Advanced Learners (Enrichment):** 2 challenging tasks
+**${L.forAll}:** 2 tasks with specific Davao City context
+**${L.forRemediation}:** 2 scaffolded tasks with step-by-step support
+**${L.forEnrichment}:** 2 challenging tasks beyond the competency
 
 ---
 LESSON DETAILS:
@@ -209,13 +210,15 @@ LESSON DETAILS:
 - Classroom Details: ${classroomDetails}
 
 ABSOLUTE RULES:
-1. Every example MUST use a specific Residence City context.
+1. Every example MUST use a specific Davao City context.
 2. If no projector/TV in classroom details, use ONLY board, chalk, cartolina, flashcards, string, ruler.
-3. Every FLOW section MUST include Differentiated Instructions with all three levels.
-4. Do NOT write placeholder text - write actual content.
-5. Use **bold text** (asterisks) for all sub-headers.
-6. Use - for bullet points.
-7. Number steps as 1. 2. 3.`;
+3. If TV/projector is available, include how to use it in the activity.
+4. Every FLOW section MUST include all three Differentiated Instruction levels.
+5. Do NOT write placeholder text - write actual detailed content.
+6. Use **bold text** (asterisks) for all sub-headers.
+7. Use - for all bullet points.
+8. Number all procedure steps as 1. 2. 3.
+9. Minimum 400 words per session in the FLOW section.`;
 
     let content = '';
 
