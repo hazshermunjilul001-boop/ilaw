@@ -218,7 +218,7 @@ ABSOLUTE RULES:
     const GROQ_MODELS = [
       'llama-3.3-70b-versatile',
       'meta-llama/llama-4-scout-17b-16e-instruct',
-      'qwen-qwq-32b',
+      'gemma2-9b-it',
       'llama-3.1-8b-instant',
     ];
 
