@@ -269,6 +269,9 @@ ABSOLUTE RULES:
         const result = await model.generateContent(prompt);
         content = result.response.text();
         console.log('Gemini success | Length:', content.length);
+        console.log('=== AI OUTPUT PREVIEW ===');
+        console.log(content.slice(0, 500));
+        console.log('=== END PREVIEW ===');
       } catch (geminiErr: any) {
         console.error('Gemini also failed:', geminiErr?.message);
         return NextResponse.json(

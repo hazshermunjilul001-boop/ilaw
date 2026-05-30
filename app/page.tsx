@@ -43,10 +43,17 @@ export default function Home() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      if (!data.content) throw new Error('No content returned');
-      const { buildDocx } = await import('../lib/buildDocx');
-      await buildDocx(data.content, form.teacherName, form.lessonName, form.learningArea, form.gradeSection, form.sessions);
+     if (data.error) throw new Error(data.error);
+     if (!data.content) throw new Error('No content returned');
+
+     // DEBUG - see what the AI actually returned
+     console.log('=== AI CONTENT PREVIEW ===');
+     console.log(data.content.slice(0, 800));
+     console.log('=== END PREVIEW ===');
+     console.log('Total length:', data.content.length);
+
+     const { buildDocx } = await import('../lib/buildDocx');
+     await buildDocx(data.content, form.teacherName, form.lessonName, form.learningArea, form.gradeSection, form.sessions);
       setStatus('success');
     } catch (e) {
       setStatus('error:' + (e as Error).message);
