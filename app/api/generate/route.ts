@@ -217,8 +217,8 @@ ABSOLUTE RULES:
 
     const GROQ_MODELS = [
       'llama-3.3-70b-versatile',
-      'meta-llama/llama-4-scout-17b-16e-instruct',
-      'gemma2-9b-it',
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
       'llama-3.1-8b-instant',
     ];
 
