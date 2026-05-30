@@ -502,6 +502,10 @@ export default function Home() {
                       placeholder={f.placeholder}
                       value={(form as any)[f.key]}
                       onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                      type="text"
+                      placeholder="City/Municipality (e.g. Davao City, Cebu City, Manila...)"
+                      value={schoolCity}
+                      onChange={e => setSchoolCity(e.target.value)}
                     />
                   )}
                 </div>

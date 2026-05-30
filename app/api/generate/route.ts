@@ -16,8 +16,10 @@ export async function POST(req: Request) {
 
     const {
       lessonName, learningArea, teacherName, gradeSection,
-      competency, sessions, classroomDetails
+      competency, sessions, classroomDetails, schoolCity
     } = body;
+
+    const city = schoolCity?.trim() || 'their city';
 
     if (!lessonName || !learningArea || !teacherName) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
