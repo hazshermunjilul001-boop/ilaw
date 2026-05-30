@@ -2,9 +2,11 @@ export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
@@ -215,107 +217,73 @@ ABSOLUTE RULES:
 6. Use - for bullet points.
 7. Number steps as 1. 2. 3.`;
 
+    let content = '';
+
+    // ── Try Groq first ─────────────────────────────────────────────
     const GROQ_MODELS = [
       'llama-3.3-70b-versatile',
-      'openai/gpt-oss-120b',
       'openai/gpt-oss-20b',
       'llama-3.1-8b-instant',
     ];
 
-    // OpenRouter free models as final fallback (separate quota entirely)
-    const OPENROUTER_MODELS = [
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'google/gemini-2.0-flash-exp:free',
-    ];
-
-    let completion: any = null;
-    let lastError: any = null;
-
-    // ── Try Groq models first ──
+    let groqSuccess = false;
     for (const model of GROQ_MODELS) {
       try {
         console.log('Trying Groq model:', model);
-        completion = await groq.chat.completions.create({
+        const completion = await groq.chat.completions.create({
           model,
-          max_tokens: 8192,      // raised from 4096
+          max_tokens: 4096,
           temperature: 0.7,
           messages: [{ role: 'user', content: prompt }],
         });
-        console.log('Success with Groq model:', model);
-        break;
+        content = completion.choices[0].message.content ?? '';
+        if (content) {
+          console.log('Groq success:', model, '| Length:', content.length);
+          groqSuccess = true;
+          break;
+        }
       } catch (err: any) {
-        console.warn(`Groq model ${model} failed:`, err?.message);
-        lastError = err;
         const isRateLimit = err?.message?.includes('rate_limit') ||
                             err?.message?.includes('429') ||
+                            err?.message?.includes('decommissioned') ||
                             err?.status === 429;
-        if (!isRateLimit) throw err;
+        console.warn(`Groq ${model} failed:`, err?.message?.slice(0, 80));
+        if (!isRateLimit) break;
       }
     }
 
-    // ── Fallback to OpenRouter if all Groq models exhausted ──
-    if (!completion && process.env.OPENROUTER_API_KEY) {
-      for (const model of OPENROUTER_MODELS) {
-        try {
-          console.log('Trying OpenRouter model:', model);
-          const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-              'HTTP-Referer': 'https://ilaw-generator.vercel.app',
-              'X-Title': 'ILAW Lesson Plan Generator',
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: 8192,
-              temperature: 0.7,
-              messages: [{ role: 'user', content: prompt }],
-            }),
-          });
-          const orData = await orRes.json();
-          if (orData.choices?.[0]?.message?.content) {
-            // Normalize to same shape as Groq response
-            completion = { choices: [{ message: { content: orData.choices[0].message.content }, finish_reason: 'stop' }] };
-            console.log('Success with OpenRouter model:', model);
-            break;
-          }
-          lastError = new Error(orData.error?.message || `OpenRouter model ${model} returned no content`);
-        } catch (err: any) {
-          console.warn(`OpenRouter model ${model} failed:`, err?.message);
-          lastError = err;
-        }
+    // ── Fallback to Gemini if Groq failed ──────────────────────────
+    if (!groqSuccess || !content) {
+      if (!process.env.GEMINI_API_KEY) {
+        return NextResponse.json(
+          { error: 'All Groq models are rate limited and no Gemini key is configured. Please try again in a few minutes.' },
+          { status: 503 }
+        );
+      }
+      try {
+        console.log('Falling back to Gemini 2.0 Flash...');
+        const model = gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const result = await model.generateContent(prompt);
+        content = result.response.text();
+        console.log('Gemini success | Length:', content.length);
+      } catch (geminiErr: any) {
+        console.error('Gemini also failed:', geminiErr?.message);
+        return NextResponse.json(
+          { error: 'All AI providers are currently busy. Please try again in 1-2 minutes.' },
+          { status: 503 }
+        );
       }
     }
-
-if (!completion) {
-  const waitMsg = lastError?.message?.match(/try again in (.+?)\./)?.[1];
-  throw new Error(
-    waitMsg
-      ? `All models are rate limited. Please try again in ${waitMsg}.`
-      : 'All models are currently rate limited. Please try again in a few minutes.'
-  );
-}
-
-    console.log('Groq responded. Finish reason:', completion.choices[0].finish_reason);
-
-    const content = completion.choices[0].message.content ?? '';
 
     if (!content) {
-      return NextResponse.json({ error: 'Groq returned empty content' }, { status: 500 });
+      return NextResponse.json({ error: 'No content generated. Please try again.' }, { status: 500 });
     }
 
-    console.log('Content length:', content.length, 'characters');
-    console.log('--- Done ---');
-
+    console.log('Final content length:', content.length);
     return NextResponse.json({ content });
 
   } catch (error: any) {
-    console.error('=== ROUTE ERROR ===');
-    console.error('Message:', error?.message);
-    console.error('Status:', error?.status);
-    console.error('Code:', error?.code);
-    console.error('===================');
+    console.error('=== ROUTE ERROR ===', error?.message);
     return NextResponse.json(
       { error: error?.message || 'Unknown server error' },
       { status: 500 }
