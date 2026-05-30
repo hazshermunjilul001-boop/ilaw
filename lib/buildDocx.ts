@@ -355,23 +355,23 @@ function parseSection(content: string, tag: string): string {
     'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING',
   ];
 
-  // Strip all ** from the entire content first, then parse cleanly
-  const stripped = content.replace(/\*\*/g, '');
-
   const startTag = tag + ':';
-  const startIdx = stripped.indexOf(startTag);
-  if (startIdx === -1) return '';
+  const startIdx = content.indexOf(startTag);
+  if (startIdx === -1) {
+    console.warn(`Tag not found: ${tag}`);
+    return '';
+  }
 
   const textStart = startIdx + startTag.length;
-  let endIdx = stripped.length;
+  let endIdx = content.length;
 
   for (const other of ALL_TAGS) {
     if (other === tag) continue;
-    const pos = stripped.indexOf(other + ':', textStart);
+    const pos = content.indexOf(other + ':', textStart);
     if (pos !== -1 && pos < endIdx) endIdx = pos;
   }
 
-  return stripped.slice(textStart, endIdx).trim();
+  return content.slice(textStart, endIdx).trim();
 }
 
 // ── Main export ────────────────────────────────────────────────────
