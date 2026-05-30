@@ -60,13 +60,13 @@ export async function POST(req: Request) {
       psychomotor:          'Sikolohikal',
       affective:            'Pandama',
       byEndOfSession:       'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
-      warmupQuestion:   'Halimbawa ng tanong para sa warm-up',
-      sampleTasks:      'Halimbawa ng mga tanong o gawain',
+      warmupQuestion:       'Halimbawa ng tanong para sa warm-up',
+      sampleTasks:          'Halimbawa ng mga tanong o gawain',
     } : {
       objectiveLink:        'Objective Link',
       teacherInstructions:  'Detailed teacher instructions',
       studentActions:       'Student actions and expected responses',
-      exampleProblems:      'Contextualized example problems using Residence City landmarks',
+      exampleProblems:      'Contextualized example problems using ${city} landmarks',
       diffInstructions:     'Differentiated Instructions',
       forAll:               'For All Learners',
       forSupport:           'For Learners Who Need Support',
@@ -87,8 +87,8 @@ export async function POST(req: Request) {
       psychomotor:          'Psychomotor',
       affective:            'Affective',
       byEndOfSession:       'By the end of this session, the learners will be able to',
-      warmupQuestion:   'Sample warm-up question',
-      sampleTasks:      'Sample tasks or questions',
+      warmupQuestion:       'Sample warm-up question',
+      sampleTasks:          'Sample tasks or questions',
     };
 
     const langRule = isFilipino
@@ -97,8 +97,136 @@ export async function POST(req: Request) {
          Ang lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
       : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
 
+    // ── Language-specific detailed instructions ─────────────────────
+    const flowInstructions = isFilipino ? `
+FLOW:
+Isulat ang KUMPLETONG daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi:
+
+**SESYON [N] - [Pamagat] ([kabuuang oras])**
+
+**${L.partLabel} 1 - [Pangalan ng Aktibidad] ([oras])**
+**${L.objectiveLink}:** [Isulat ang TIYAK na layunin mula sa LEARNING_OBJECTIVES na tinutugunan ng bahaging ito]
+**${L.teacherInstructions}:** Isulat ang mga tagubilin ng guro bilang SCRIPT. Kasama ang:
+  - Eksaktong pambungad na salita (hal. "Sabihin: 'Klase, tingnan ninyo ang larawang ito...'")
+  - Hakbang-hakbang na pagtuturo sa pisara
+  - Mga tanong para masuri ang pag-unawa ng mga mag-aaral habang nagtatakbo ang aktibidad
+  - Pangwakas na pahayag para sa susunod na bahagi
+**${L.studentActions}:** Ilarawan ang EKSAKTONG ginagawa, sinasabi, at ginagawa ng mga mag-aaral — hindi lang "makinig at kumuha ng tala." Kasama ang inaasahang verbal na tugon sa mga tanong ng guro.
+**${L.exampleProblems}:** Isulat ang HINDI BABABA SA 2 GANAP NA NASOSOLUSYUNAN na kontekstwalisadong halimbawa gamit ang mga TIYAK na lugar sa ${city} na may TUNAY na numero. Ipakita ang kumpletong hakbang ng solusyon.
+  Gamitin ang mga lokal na konteksto tulad ng: mga palengke, paaralan, tanggapan ng pamahalaan, pamilihan, transportasyon, at mga sikat na lugar sa ${city}.
+**${L.diffInstructions}:**
+**${L.forAll}:** [Tiyak na aktibidad na may eksaktong tagubilin — ano ang gagawin nila, anong materyales, anong output]
+**${L.forSupport}:** [Scaffolded na bersyon — hal. bahagyang nasosolusyunan na problema na pupunan lang ng mga mag-aaral, o reference card ng formula]
+**${L.forAdvanced}:** [Tunay na extension — mas mahirap na problema, patunay, real-world application, o paglikha ng sariling problema]
+**${L.guidingQuestions}:**
+- [Tanong sa recall — direkta mula sa nilalaman ng aralin]
+- [Tanong sa analysis — nangangailangan ng paghahambing, pagpapaliwanag, o pagbibigay-katwiran]
+- [Tanong sa application — gumagamit ng tiyak na sitwasyon sa ${city} na may mga numero]
+
+**${L.partLabel} 3 - ${L.synthesisLabel} ([oras])**
+**${L.closingDiscussion}:** Isulat ang AKTWAL na mga tanong sa talakayan na itatanong ng guro sa klase (hindi bababa sa 3 tanong). Kasama ang inaasahang tugon ng mga mag-aaral.
+**${L.exitTicket}:** Isulat ang EKSAKTONG tanong o gawaing sasaguting ng mga mag-aaral bago umalis. Dapat masagot sa loob ng 2-3 minuto at direktang sinusukat ang layunin ng sesyon.
+**${L.realLifeConnection}:** Isulat ang tiyak na 2-3 pangungusap na sasabihin ng guro upang ikonekta ang aralin sa tunay na konteksto sa ${city} na personal na maiuugnay ng mga mag-aaral.
+` : `
+FLOW:
+Write the COMPLETE lesson flow for ALL sessions. For each part of each session:
+
+**SESSION [N] - [Title] ([total time])**
+
+**${L.partLabel} 1 - [Activity Name] ([time])**
+**${L.objectiveLink}:** [State the SPECIFIC objective from LEARNING_OBJECTIVES this part addresses]
+**${L.teacherInstructions}:** Write as a TEACHING SCRIPT. Include:
+  - Exact opening words (e.g. "Say to the class: 'Look at this diagram...'")
+  - Step-by-step board work or demonstration with exact content
+  - Mid-activity comprehension check questions with expected responses
+  - Transition statement to the next part
+**${L.studentActions}:** Describe exactly what students DO, SAY, and PRODUCE — not just "listen and take notes." Include expected verbal responses.
+**${L.exampleProblems}:** Write AT LEAST 2 FULLY SOLVED contextualized problems using SPECIFIC ${city} landmarks with REAL numbers. Show every solution step.
+  Use local contexts such as: local markets, schools, government offices, malls, transportation routes, tourist spots, and landmarks in ${city}.
+**${L.diffInstructions}:**
+**${L.forAll}:** [Specific activity with exact instructions — what they do, with what materials, producing what output]
+**${L.forSupport}:** [Scaffolded version — e.g. partially solved problem where students fill in only steps 3-4, or a formula reference card]
+**${L.forAdvanced}:** [Genuine extension — harder problem, a proof, real-world application, or creating their own problem]
+**${L.guidingQuestions}:**
+- [Recall question — directly from lesson content]
+- [Analysis question — requires comparing, explaining, or justifying]
+- [Application question — uses a specific ${city} scenario with numbers]
+
+**${L.partLabel} 3 - ${L.synthesisLabel} ([time])**
+**${L.closingDiscussion}:** Write the ACTUAL discussion questions (at least 3) the teacher will ask. Include expected student responses.
+**${L.exitTicket}:** Write the EXACT exit ticket question students answer before leaving. Must be completable in 2-3 minutes and directly assess the session objective.
+**${L.realLifeConnection}:** Write a specific 2-3 sentence statement connecting today's lesson to a real ${city} context students can personally relate to.
+`;
+
+    const preLessonInstructions = isFilipino ? `
+PRE_LESSON:
+Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
+
+**Session [N] - "[Pangalan ng Aktibidad]" ([oras])**
+**Materials:** [listahan]
+**Procedure:**
+1. [Eksaktong hakbang — ano ang gagawin ng guro]
+2. [Ano ang sasabihin ng guro — word-for-word kung posible]
+3. [Paano mag-re-respond ang mga mag-aaral]
+4. [Paano ito nag-a-activate ng prior knowledge]
+**Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
+**${L.warmupQuestion}:** "[Write the actual warm-up question using ${city} context]"
+` : `
+PRE_LESSON:
+For EACH session, write the complete warm-up activity:
+
+**Session [N] - "[Activity Name]" ([time])**
+**Materials:** [list]
+**Procedure:**
+1. [Exact teacher step]
+2. [Exact teacher script]
+3. [Student response]
+4. [How it activates prior knowledge]
+**Purpose:** [Why this is effective]
+**${L.warmupQuestion}:** "[Actual warm-up question using ${city} context]"
+`;
+
+    const formativeInstructions = isFilipino ? `
+FORMATIVE_ASSESSMENT:
+Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
+
+**Session [N] - [Pangalan ng Assessment Tool]**
+**${L.description}:**
+**${L.sampleTasks}:**
+**${L.administration}:**
+**${L.howResultsUsed}:**
+**${L.rubric}:**
+**${L.accommodation}:**
+` : `
+FORMATIVE_ASSESSMENT:
+For EACH session, write the detailed formative assessment:
+
+**Session [N] - [Assessment Tool Name]**
+**${L.description}:**
+**${L.sampleTasks}:**
+**${L.administration}:**
+**${L.howResultsUsed}:**
+**${L.rubric}:**
+**${L.accommodation}:**
+`;
+
+    const absoluteRules = `
+ABSOLUTE RULES — VIOLATIONS MAKE THE LESSON PLAN UNUSABLE:
+1. Every contextualized example MUST name a SPECIFIC landmark, place, or situation in ${city} with ACTUAL numbers.
+2. If no projector/TV in classroom details, use ONLY board, chalk, cartolina, flashcards, string, ruler.
+3. Every FLOW PART must have Differentiated Instructions with ALL THREE levels fully written — never write "provide extra support" or "provide more complex problems" as those are unacceptable placeholders.
+4. PRE_LESSON must include a warm-up for EVERY session — not just Session 1.
+5. PART 3 Synthesis must have actual written discussion questions, an actual exit ticket question, and an actual real-life connection statement — never leave these as single-word labels.
+6. FORMATIVE_ASSESSMENT must include fully written assessment items with complete problem statements or questions — not just descriptions of what the assessment is.
+7. FLOW teacher instructions must read like a teaching script — what the teacher physically does and says, word for word.
+8. Contextualized examples must show COMPLETE solutions with numbered steps — not just mention the context.
+9. Do NOT truncate, summarize, or skip any section. Every section must be fully written.
+10. ${isFilipino ? 'Lahat ng nilalaman ay sa FILIPINO/TAGALOG. Bawal ang Ingles maliban sa section key labels at mga teknikal na terminong walang katumbas sa Filipino.' : 'Write ALL content in ENGLISH only.'}
+`;
+
     const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for DepEd public secondary schools.
 ${langRule}
+
 Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach it without any other reference.
 
 Use EXACTLY these section labels (ALL CAPS, followed by colon):
@@ -125,51 +253,9 @@ Write 4 subsections:
 **Possible Barriers to Learning:** at least 4 bullets
 **Accommodations and Support:** at least 4 bullets
 
-PRE_LESSON:
-Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
+${preLessonInstructions}
 
-**Session [N] - "[Pangalan ng Aktibidad]" ([oras])**
-**Materials:** [listahan]
-**Procedure:**
-1. [Eksaktong hakbang — ano ang gagawin ng guro]
-2. [Ano ang sasabihin ng guro — word-for-word kung posible]
-3. [Paano mag-re-respond ang mga mag-aaral]
-4. [Paano ito nag-a-activate ng prior knowledge]
-**Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
-**${L.warmupQuestion}:** "[Write the actual warm-up question using Residence City context]"
-
-FLOW:
-Isulat ang kumpletong daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi ng bawat sesyon:
-
-**SESSION [N] - [Pamagat] ([kabuuang oras])**
-
-**BAHAGI 1 - [Pangalan ng Aktibidad] ([oras])**
-**${L.objectiveLink}:**
-**${L.teacherInstructions}:**
-**${L.studentActions}:**
-**${L.exampleProblems}:**
-- Bankerohan Market, Agdao Market, Ilustre Market
-- durian vendors sa Magsaysay Park
-- pasalubong shops sa Aldevinco
-- SM Lanang, Abreeza Mall, NCCC Mall
-- jeepney o habal-habal fares sa Residence City
-- tuna at bangus mula sa Samal Island
-**${L.diffInstructions}:**
-**${L.forAll}:** [konkretong aktibidad para sa lahat]
-**${L.forSupport}:** [simplified na bersyon na may visual aids o guide questions]
-**${L.forAdvanced}:** [extension task na hihiwalay sa grupo]
-**${L.guidingQuestions}:**
-- [Tanong 1 — pang-recall]
-- [Tanong 2 — pang-analysis]
-- [Tanong 3 — pang-application sa Residence City context]
-
-**PART 2 - [Activity Name] ([time])**
-[same structure]
-
-**PART 3 - Synthesis and Reflection ([time])**
-- closing discussion
-- exit ticket
-- real-life connection
+${flowInstructions}
 
 LEARNING_RESOURCES:
 **Primary Materials:** bullets
@@ -182,16 +268,7 @@ OPPORTUNITIES_FOR_INTEGRATION:
 **Values Integration:** Filipino values connected to the lesson
 **Technology (Future Integration):** free tools for future use
 
-FORMATIVE_ASSESSMENT:
-Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
-
-**Session [N] - [Pangalan ng Assessment Tool]**
-**${L.description}:**
-**${L.sampleTasks}:**
-**${L.administration}:**
-**${L.howResultsUsed}:**
-**${L.rubric}:**
-**${L.accommodation}:**
+${formativeInstructions}
 
 EXTENDED_LEARNING:
 **For All Learners:** 2 tasks with Residence City context
@@ -207,15 +284,9 @@ LESSON DETAILS:
 - Learning Competency: ${competency}
 - Sessions: ${sessions}
 - Classroom Details: ${classroomDetails}
+- School City: ${city}
 
-ABSOLUTE RULES:
-1. Every example MUST use a specific Residence City context.
-2. If no projector/TV in classroom details, use ONLY board, chalk, cartolina, flashcards, string, ruler.
-3. Every FLOW section MUST include Differentiated Instructions with all three levels.
-4. Do NOT write placeholder text - write actual content.
-5. Use **bold text** (asterisks) for all sub-headers.
-6. Use - for bullet points.
-7. Number steps as 1. 2. 3.`;
+${absoluteRules}`;
 
     const GROQ_MODELS = [
       'llama-3.3-70b-versatile',

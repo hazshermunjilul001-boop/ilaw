@@ -10,6 +10,7 @@ export default function Home() {
     competency: '',
     sessions: '',
     classroomDetails: '',
+    schoolCity: '',
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -60,13 +61,14 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const allFilled = form.lessonName && form.competency && form.teacherName && form.learningArea;
+  const allFilled = form.lessonName && form.competency && form.teacherName && form.learningArea && form.schoolCity;
 
   const fields = [
     { key: 'lessonName', label: 'Name of Lesson', placeholder: 'e.g. Law of Sines — Oblique Triangles', icon: '📖', area: false },
     { key: 'learningArea', label: 'Learning Area', placeholder: 'e.g. Mathematics 10', icon: '🎓', area: false },
     { key: 'teacherName', label: 'Teacher\'s Name', placeholder: 'Your full name', icon: '👩‍🏫', area: false },
     { key: 'gradeSection', label: 'Grade Level & Section', placeholder: 'e.g. Grade 10 — Rizal', icon: '🏫', area: false },
+    { key:'schoolCity', label: 'School City / Municipality', placeholder: 'e.g. Davao City, Cebu City, Manila, Quezon City...', icon: '📍', area: false },
     { key: 'competency', label: 'Learning Competency (MELC)', placeholder: 'Paste the full MELC text and code here...', icon: '🎯', area: true },
     { key: 'sessions', label: 'No. of Sessions & Duration', placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min', icon: '⏱️', area: false },
     { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, Residence City context...', icon: '🏡', area: true },
@@ -499,9 +501,9 @@ export default function Home() {
                     <input
                       type="text"
                       className="field-input"
-                      placeholder="City/Municipality (e.g. Davao City, Cebu City, Manila...)"
-                      value={schoolCity}
-                      onChange={e => setSchoolCity(e.target.value)}
+                      placeholder={f.placeholder}
+                      value={(form as any)[f.key]}
+                      onChange={e => setForm({ ...form, [f.key]: e.target.value })}
                     />
                   )}
                 </div>
