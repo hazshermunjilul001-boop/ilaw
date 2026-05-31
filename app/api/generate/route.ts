@@ -23,11 +23,12 @@ export async function POST(req: Request) {
     }
 
     const hasGroq = !!process.env.GROQ_API_KEY;
-    const hasGemini = !!process.env.GEMINI_API_KEY;
     const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+    const hasMistral = !!process.env.MISTRAL_API_KEY;
+    const hasCerebras = !!process.env.CEREBRAS_API_KEY;
 
-    if (!hasGroq && !hasGemini && !hasOpenRouter) {
-      return NextResponse.json({ error: 'No AI API key found in environment. Please set GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.' }, { status: 500 });
+    if (!hasGroq && !hasOpenRouter && !hasMistral && !hasCerebras) {
+      return NextResponse.json({ error: 'No API key found. Add GROQ_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, or CEREBRAS_API_KEY to .env.local' }, { status: 500 });
     }
 
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -124,133 +125,108 @@ export async function POST(req: Request) {
       ? 'FILIPINO/TAGALOG. Lahat ng salita, subheading, at paliwanag ay sa Filipino. Bawal ang Ingles maliban sa ALL CAPS section keys at teknikal na termino.'
       : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys.';
 
-    // ── System prompt (static rules — kept separate to reduce user token count) ──
-    const systemPrompt = `You are an expert DepEd Philippines curriculum writer and master teacher.
-Write COMPLETE, DEEPLY SPECIFIC, CLASSROOM-READY ILAW lesson plans.
-ABSOLUTE RULES — never violate:
-- USE ONLY BULLET POINTS (•) for every list. NO numbered lists anywhere.
-- Every teacher script is word-for-word. Never write "discuss the topic" or "ask students about X".
-- Every example names a SPECIFIC local place, price, person, or event from the city provided. Never generic.
-- Every guiding question is written in full and labeled: [KNOWLEDGE] [COMPREHENSION] [APPLICATION] [ANALYSIS] [EVALUATION]
-- NEVER skip or merge sessions. PRE_LESSON and FLOW must have a separate full entry for EVERY session.
-- A substitute teacher must be able to run every session using ONLY this document.`;
+    // ── Prompts: system (rules) + user (lesson data only) ───────────────────
+    // Split keeps token count ~4k so all free-tier models can handle it.
+    const systemPrompt = `You are an expert DepEd Philippines ILAW lesson plan writer. Always follow these rules:
+• Use bullet points (•) only — absolutely no numbered lists anywhere.
+• Every teacher instruction must be a word-for-word script — never write "discuss", "explain", or "ask students about X" as placeholders.
+• Every example must name a real, specific place, price, or event from the city given — never generic.
+• Label every question with its Bloom's level: [KNOWLEDGE] [COMPREHENSION] [APPLICATION] [ANALYSIS] [EVALUATION].
+• Write a fully separate PRE_LESSON and FLOW entry for every session — never skip, merge, or abbreviate.
+• A substitute teacher with no subject knowledge must be able to run every session using only this document.`;
 
-    // ── User prompt (dynamic lesson data only) ────────────────────────────
-    const prompt = `Write a COMPLETE ILAW lesson plan in ${lang}.
+    const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
+    const aiNote = isFilipino
+      ? '3-4 pangungusap sa FILIPINO tungkol sa paggamit ng AI, pagsusuri ng guro, at pagsunod sa DO 3 s.2026 Annex A.'
+      : '3-4 sentences about AI assistance, teacher review, and DO 3 s.2026 Annex A compliance.';
 
-Output sections in this EXACT order using ALL-CAPS labels followed by colon:
+    const prompt = `Write a COMPLETE classroom-ready ILAW lesson plan in ${lang}.
+${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}
 
-REFERENCES:
-4-6 real DepEd references with page numbers and MELC code.
-
-DECLARATION_AI:
-${isFilipino
-  ? '3-4 pangungusap sa FILIPINO tungkol sa paggamit ng Gemini AI, pagsusuri ng guro, at pagsunod sa DO 3 s.2026 Annex A.'
-  : '3-4 sentences in ENGLISH about Gemini AI assistance, teacher review, and DO 3 s.2026 Annex A compliance.'}
-
-LEARNING_COMPETENCY:
-Full MELC text, MELC code, Content Standard, Performance Standard.
-
-LEARNING_OBJECTIVES:
-For EACH session, bold header then 3 objectives per domain:
-**${L.cognitive}:** ${L.byEnd}...
-**${L.psychomotor}:** ${L.byEnd}...
-**${L.affective}:** ${L.byEnd}...
-
-LEARNER_CONTEXT:
-**${L.strengths}:** 3+ specific bullets
-**${L.interests}:** 3+ bullets relevant to ${city} learners
-**${L.barriers}:** 4+ specific bullets
-**${L.support}:** 4+ actionable bullets
-
-PRE_LESSON:
-For EVERY session (do not skip any):
-**${L.session} N - "Activity Name" (time)**
-**${L.materials}:** list
-**${L.procedure}:**
-1. Exact teacher action
-2. Word-for-word teacher script using ${city} context
-3. Expected student response
-4. How it activates prior knowledge
-**${L.purpose}:** why this prepares learners
-**${L.warmup}:** "Actual question using ${city} context"
-
-FLOW:
-For EVERY session and every part:
-**${L.session} N - Title (total time)**
-**${L.part} 1 - Activity Name (time)**
-**${L.objLink}:** specific objective addressed
-**${L.teacherScript}:** Word-for-word script: opening, board work steps, comprehension checks, transition
-**${L.studentActions}:** exactly what students do, say, and produce
-**${L.examples}:** 2+ fully solved problems with REAL numbers from ${city} (show every step)
-**${L.diffLabel}:**
-**${L.forAll}:** exact instructions
-**${L.forSupport}:** scaffolded version
-**${L.forAdvanced}:** genuine extension task
-**${L.guiding}:**
-- recall question
-- analysis question
-- application question using ${city}
-**${L.part} 3 - ${L.synthesis} (time)**
-**${L.closing}:** 3+ actual discussion questions with expected responses
-**${L.exit}:** exact question answerable in 2-3 minutes
-**${L.realLife}:** 2-3 sentences connecting lesson to ${city} context
-
-LEARNING_RESOURCES:
-**${L.primaryMat}:** specific bullets
-**${L.refMat}:** bullets with page numbers
-**${L.emergency}:** 3+ contingency plans
-
-OPPORTUNITIES_FOR_INTEGRATION:
-**${L.otherAreas}:** 3+ connections
-**${L.specialTopics}:** 2+ career connections in ${city}
-**${L.values}:** Filipino values in this lesson
-**${L.tech}:** free digital tools
-
-FORMATIVE_ASSESSMENT:
-For EVERY session:
-**${L.session} N - Assessment Tool Name**
-**${L.descLabel}:** what it measures
-**${L.sampleTasks}:**
-1. Full question/task with ${city} context
-2. Full question/task
-3. Full question/task
-**${L.admin}:** how and how long
-**${L.howUsed}:** specific teacher action based on results
-**${L.rubric}:**
-4 - descriptor
-3 - descriptor
-2 - descriptor
-1 - descriptor
-**${L.accom}:** specific accommodations
-
-EXTENDED_LEARNING:
-**${L.forAll}:** 2 tasks with ${city} context
-**${L.forRemediation}:** 2 scaffolded tasks
-**${L.forAdvanced}:** 2 challenging tasks
-
----
 LESSON: ${lessonName} | AREA: ${learningArea} | TEACHER: ${teacherName}
 GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
 COMPETENCY: ${competency}
 CLASSROOM: ${classroomDetails}
-${!classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv') ? 'NO PROJECTOR/TV: Use only board, chalk, cartolina, flashcards.' : ''}
 
-Write in ${lang}. Use ONLY bullet points (•). Word-for-word scripts. Specific ${city} examples.`;
+Output these sections IN ORDER using ALL-CAPS label + colon. Write every section in full — no placeholders.
+
+REFERENCES: 4-6 real DepEd references with full citation, page numbers, MELC code.
+
+DECLARATION_AI: ${aiNote}
+
+LEARNING_COMPETENCY: Full MELC text, code, Content Standard, Performance Standard.
+
+LEARNING_OBJECTIVES: Per session separately — **${L.cognitive}**, **${L.psychomotor}**, **${L.affective}** with Bloom's action verbs.
+
+LEARNER_CONTEXT:
+**${L.strengths}:** 4+ specific bullets about prior knowledge this class has
+**${L.interests}:** 4+ bullets tied to real ${city} youth culture or community life
+**${L.barriers}:** 5+ specific learning barriers
+**${L.support}:** 5+ concrete strategies matched to each barrier above
+
+PRE_LESSON: Separate full entry for EVERY session — never skip:
+**${L.session} N — "Activity Title" (time)**
+**${L.materials}:** • bullet list of every item needed
+**${L.procedure}:** • each bullet = one specific teacher action or word-for-word script line + expected student response
+**${L.purpose}:** what prior knowledge this activates and why it matters for today
+**${L.warmup}:** one fully written question using a specific ${city} place/person/event, with expected answers
+
+FLOW: Full entry for EVERY session. Write Parts 1, 2, 3 — never skip Part 2:
+**${L.session} N — "Title" (total time)**
+**${L.part} 1 — "Activity" (time)**
+**${L.objLink}:** which specific objective this addresses
+**${L.teacherScript}:** • word-for-word bullet script: opening → modeling with ${city} example → board steps → mid-activity check → transition
+**${L.studentActions}:** • exactly what students do, write, say, and produce
+**${L.examples}:** • 2 fully worked examples set in ${city} — real street names, peso amounts, actual titles, real institutions
+**${L.diffLabel}:**
+• **${L.forAll}:** exact universal instruction
+• **${L.forSupport}:** specific scaffold (e.g., graphic organizer with first row pre-filled, sentence starters)
+• **${L.forAdvanced}:** genuine higher-order task — not just "more of the same"
+**${L.guiding}:** • 5 questions, one per Bloom's level, each fully written and labeled
+**${L.part} 2 — "Activity" (time):** [same full structure as Part 1]
+**${L.part} 3 — ${L.synthesis} (time):**
+• **${L.closing}:** 3 discussion questions with expected student responses
+• **${L.exit}:** exact question + scoring guide (complete vs. incomplete answer)
+• **${L.realLife}:** 2-3 sentences connecting to something happening NOW in ${city}
+
+LEARNING_RESOURCES: Primary materials, references with page numbers, 3 emergency alternatives fully described.
+
+OPPORTUNITIES_FOR_INTEGRATION: Subject connections, ${city} career paths (name real companies/institutions), Filipino values with specific lesson moments, free digital tools with URLs.
+
+FORMATIVE_ASSESSMENT: Separate full entry for EVERY session:
+**${L.session} N — "Tool Name"**
+**${L.descLabel}:** what skill/knowledge it measures and why this method fits
+**${L.sampleTasks}:** • 3 full tasks labeled with Bloom's level, at least one set in ${city}
+**${L.admin}:** exact procedure, timing, silent or collaborative, how submitted
+**${L.howUsed}:** specific teacher action for scores 1-2 vs 3-4
+**${L.rubric}:** • 4 - [full mastery descriptor] • 3 - [proficiency] • 2 - [developing] • 1 - [beginning]
+**${L.accom}:** • accommodations for reading difficulty, absent students, early finishers
+
+EXTENDED_LEARNING:
+**${L.forAll}:** • 2 take-home tasks rooted in ${city} daily life
+**${L.forRemediation}:** • 2 scaffolded tasks with explicit step-by-step instructions
+**${L.forAdvanced}:** • 2 tasks requiring synthesis/creation for a real ${city} audience`;
 
     let completion: any = null;
     let lastError: any = null;
 
-    // ── 1. Try Groq ───────────────────────────────────────────────
+    const isSkippable = (err: any, msg = err?.message ?? '') =>
+      err?.status === 429 || err?.status === 413 ||
+      msg.includes('429') || msg.includes('413') ||
+      msg.includes('rate_limit') || msg.includes('Request too large') ||
+      msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') ||
+      msg.includes('limit: 0') || msg.includes('model_not_found') ||
+      msg.includes('does not exist') || msg.includes('decommissioned');
+
+    // ── 1. Groq — free, no billing (groq.com) ────────────────────
+    // Only large-context models; 8b models have 6k TPM which is too small.
     if (hasGroq) {
       const PREFERRED = [
-        'llama-3.3-70b-versatile',
-        'meta-llama/llama-4-scout-17b-16e-instruct',
+        'meta-llama/llama-4-scout-17b-16e-instruct',  // 500k TPD free
+        'llama-3.3-70b-versatile',                    // 100k TPD free
         'llama-3.1-70b-versatile',
-        'llama-3.1-8b-instant',
-        'llama3-70b-8192',
+        'compound-beta',
       ];
-
       let GROQ_MODELS: string[] = PREFERRED;
       try {
         const r = await fetch('https://api.groq.com/openai/v1/models', {
@@ -264,101 +240,48 @@ Write in ${lang}. Use ONLY bullet points (•). Word-for-word scripts. Specific 
           const verified = PREFERRED.filter(id => live.has(id));
           const extras = [...live].filter(id =>
             !verified.includes(id) &&
-            (id.includes('llama') || id.includes('qwen') || id.includes('gpt-oss') || id.includes('deepseek')) &&
-            !id.includes('guard') && !id.includes('whisper') && !id.includes('tts') && !id.includes('vision')
+            (id.includes('llama-3.3') || id.includes('llama-4') || id.includes('llama-3.1-70b')) &&
+            !id.includes('guard') && !id.includes('whisper') && !id.includes('tts') &&
+            !id.includes('8b') && !id.includes('8B')
           );
-          GROQ_MODELS = verified.length > 0 ? [...verified, ...extras.slice(0, 3)] : PREFERRED;
+          GROQ_MODELS = verified.length > 0 ? [...verified, ...extras.slice(0, 2)] : PREFERRED;
           console.log('Groq models to try:', GROQ_MODELS.join(', '));
         }
-      } catch (e) {
-        console.warn('Groq model list fetch failed, using defaults');
-      }
+      } catch { console.warn('Groq model list fetch failed, using defaults'); }
 
       for (const model of GROQ_MODELS) {
         try {
-          console.log('Trying Groq model:', model);
+          console.log('Trying Groq:', model);
           completion = await groq.chat.completions.create({
-            model,
-            max_tokens: 8192,
-            temperature: 0.7,
-            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
+            model, max_tokens: 8192, temperature: 0.7,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: prompt },
+            ],
           });
           console.log('Groq success:', model, '| finish:', completion.choices[0].finish_reason);
           break;
         } catch (err: any) {
           console.warn(`Groq ${model} failed:`, err?.message);
           lastError = err;
-          const skip = err?.message?.includes('rate_limit') || err?.message?.includes('429') ||
-                       err?.message?.includes('413') || err?.status === 429 || err?.status === 413 ||
-                       err?.message?.includes('Request too large') || err?.message?.includes('model_not_found') ||
-                       err?.message?.includes('does not exist') || err?.message?.includes('decommissioned');
-          if (!skip) throw err;
+          if (!isSkippable(err)) throw err;
         }
       }
     }
 
-    // ── 2. Try Gemini (if Groq failed or unavailable) ─────────────
-    if (!completion && hasGemini) {
-      const GEMINI_MODELS = [
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-2.5-flash-preview-05-20',
-        'gemini-2.5-pro-preview-06-05',
-      ];
-
-      for (const model of GEMINI_MODELS) {
-        try {
-          console.log('Trying Gemini model:', model);
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-          const r = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              system_instruction: { parts: [{ text: systemPrompt }] },
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                maxOutputTokens: 8192,
-                temperature: 0.7,
-              },
-            }),
-          });
-
-          const d = await r.json();
-
-          if (d.error) {
-            const isRateLimit = d.error.code === 429 || d.error.status === 'RESOURCE_EXHAUSTED';
-            console.warn(`Gemini ${model} error:`, d.error.message);
-            lastError = new Error(d.error.message);
-            if (isRateLimit) continue; // try next model
-            throw new Error(d.error.message);
-          }
-
-          const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            completion = {
-              choices: [{ message: { content: text }, finish_reason: 'stop' }],
-            };
-            console.log('Gemini success:', model);
-            break;
-          }
-
-          lastError = new Error(`Gemini ${model} returned no content`);
-        } catch (err: any) {
-          console.warn(`Gemini ${model} failed:`, err?.message);
-          lastError = err;
-        }
-      }
-    }
-
-    // ── 3. Try OpenRouter (last resort) ──────────────────────────
+    // ── 2. OpenRouter — free models, no billing (openrouter.ai) ──
+    // Free signup, no credit card. OPENROUTER_API_KEY in .env.local
     if (!completion && hasOpenRouter) {
-      const OPENROUTER_MODELS = [
+      const OR_MODELS = [
         'deepseek/deepseek-v3:free',
-        'deepseek/deepseek-r1:free',
         'meta-llama/llama-3.3-70b-instruct:free',
+        'deepseek/deepseek-r1:free',
+        'google/gemma-3-27b-it:free',
+        'mistralai/mistral-7b-instruct:free',
+        'microsoft/phi-4-reasoning-plus:free',
+        'tngtech/deepseek-r1t-chimera:free',
       ];
-
-      for (const model of OPENROUTER_MODELS) {
+      for (const model of OR_MODELS) {
         try {
           console.log('Trying OpenRouter:', model);
           const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -371,20 +294,106 @@ Write in ${lang}. Use ONLY bullet points (•). Word-for-word scripts. Specific 
             },
             body: JSON.stringify({
               model, max_tokens: 8192, temperature: 0.7,
-              messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt },
+              ],
             }),
           });
           const d = await r.json();
           if (d.choices?.[0]?.message?.content) {
-            completion = {
-              choices: [{ message: { content: d.choices[0].message.content }, finish_reason: 'stop' }],
-            };
+            completion = { choices: [{ message: { content: d.choices[0].message.content }, finish_reason: 'stop' }] };
             console.log('OpenRouter success:', model);
             break;
           }
-          lastError = new Error(d.error?.message || `${model} returned no content`);
+          console.warn('OpenRouter no content:', d.error?.message ?? 'empty');
+          lastError = new Error(d.error?.message ?? `${model} returned no content`);
         } catch (err: any) {
+          console.warn(`OpenRouter ${model} failed:`, err?.message);
           lastError = err;
+        }
+      }
+    }
+
+    // ── 3. Mistral AI — free tier, no billing (console.mistral.ai) 
+    // Free signup, no credit card. MISTRAL_API_KEY in .env.local
+    if (!completion && hasMistral) {
+      const MISTRAL_MODELS = [
+        'mistral-small-latest',
+        'open-mistral-nemo',
+        'open-mistral-7b',
+      ];
+      for (const model of MISTRAL_MODELS) {
+        try {
+          console.log('Trying Mistral:', model);
+          const r = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model, max_tokens: 8192, temperature: 0.7,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt },
+              ],
+            }),
+          });
+          const d = await r.json();
+          if (d.choices?.[0]?.message?.content) {
+            completion = { choices: [{ message: { content: d.choices[0].message.content }, finish_reason: 'stop' }] };
+            console.log('Mistral success:', model);
+            break;
+          }
+          console.warn('Mistral no content:', d.error?.message ?? 'empty');
+          lastError = new Error(d.error?.message ?? `${model} returned no content`);
+        } catch (err: any) {
+          console.warn(`Mistral ${model} failed:`, err?.message);
+          lastError = err;
+          if (!isSkippable(err)) throw err;
+        }
+      }
+    }
+
+    // ── 4. Cerebras AI — free tier, no billing (cloud.cerebras.ai) 
+    // Free signup with email only, no credit card. Fastest free inference.
+    // CEREBRAS_API_KEY in .env.local
+    if (!completion && hasCerebras) {
+      const CEREBRAS_MODELS = [
+        'llama-3.3-70b',
+        'llama3.1-70b',
+        'llama3.1-8b',
+      ];
+      for (const model of CEREBRAS_MODELS) {
+        try {
+          console.log('Trying Cerebras:', model);
+          const r = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.CEREBRAS_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model, max_tokens: 8192, temperature: 0.7,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt },
+              ],
+            }),
+          });
+          const d = await r.json();
+          if (d.choices?.[0]?.message?.content) {
+            completion = { choices: [{ message: { content: d.choices[0].message.content }, finish_reason: 'stop' }] };
+            console.log('Cerebras success:', model);
+            break;
+          }
+          console.warn('Cerebras no content:', d.error?.message ?? 'empty');
+          lastError = new Error(d.error?.message ?? `${model} returned no content`);
+        } catch (err: any) {
+          console.warn(`Cerebras ${model} failed:`, err?.message);
+          lastError = err;
+          if (!isSkippable(err)) throw err;
         }
       }
     }

@@ -218,9 +218,8 @@ function toParas(text: string): Paragraph[] {
     if (!line.trim()) { result.push(emptyP()); continue; }
     const trimmed = line.trim();
 
-    // Numbered step: "1. text" or "1) text" — render as bullet to avoid cross-section counter bleed
+    // Numbered step: render as bullet to prevent cross-section counter bleed
     if (/^\d+[\.\)]\s+/.test(trimmed)) {
-      const clean = trimmed.replace(/^\d+[\.\)]\s+/, '').replace(/\*/g, '');
       result.push(new Paragraph({
         numbering: { reference: 'bullets', level: 0 },
         spacing: { after: 40 },
@@ -335,13 +334,11 @@ function parseSection(content: string, tag: string): string {
     const pos = content.indexOf(other + ':', textStart);
     if (pos !== -1 && pos < endIdx) endIdx = pos;
   }
-  return content.slice(textStart, endIdx).trim();
-  const result = content.slice(textStart, endIdx).trim()
-    .replace(/^\*{1,2}\s*/, '')
-    .replace(/\s*\*{1,2}$/, '');
-  
-  // Return placeholder if empty so the cell is never blank in the DOCX
-  return result || '(Pakitingnan ang buong lesson plan — hindi nakumpleto ng AI ang seksyong ito dahil sa limitasyon ng token. Subukang i-generate muli.)';
+  const raw = content.slice(textStart, endIdx).trim();
+  // Strip leading/trailing markdown bold markers
+  const result = raw.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '');
+  // Never return a blank cell — show a clear placeholder so teacher knows
+  return result || `(Hindi nakumpleto ng AI ang seksyong "${tag}". Subukang i-generate muli o dagdagan ang detalye sa form.)`;
 }
 
 // ── Main export ────────────────────────────────────────────────────
