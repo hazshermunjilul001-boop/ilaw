@@ -17,68 +17,32 @@ const solid = (sz = 5, color = '000000') => ({ style: BorderStyle.SINGLE, size: 
 const fullB = { top: solid(6), bottom: solid(6), left: solid(6), right: solid(6) };
 const thinB = { top: solid(3, 'AAAAAA'), bottom: solid(3, 'AAAAAA'), left: solid(3, 'AAAAAA'), right: solid(3, 'AAAAAA') };
 
-// ── Language detection ─────────────────────────────────────────────
 function isFilipinoPH(learningArea: string): boolean {
   return /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
 }
 
-// ── Template labels: English (ILAW) vs Filipino (Plano sa Aralin) ──
 interface TemplateLabels {
-  docTitle: string;
-  lessonName: string;
-  learningArea: string;
-  designedBy: string;
-  gradeSection: string;
-  noOfSessions: string;
-  references: string;
-  referencesDesc: string;
-  aiDeclaration: string;
-  aiDeclarationDesc: string;
-  aiDeclarationLink: string;
-  // Section banners
-  intentionsBanner: string;
-  intentionsDesc: string;
-  learningExpBanner: string;
-  learningExpDesc: string;
-  assessmentBanner: string;
-  assessmentDesc: string;
-  waysForwardBanner: string;
-  waysForwardDesc: string;
-  // Row labels
-  competencyLabel: string;
-  competencyDesc: string;
-  objectivesLabel: string;
-  objectivesDesc: string;
-  learnerContextLabel: string;
-  learnerContextDesc: string;
-  preLessonLabel: string;
-  preLessonDesc: string;
-  flowLabel: string;
-  flowDesc: string;
-  resourcesLabel: string;
-  resourcesDesc: string;
-  integrationLabel: string;
-  integrationDesc: string;
-  formativeLabel: string;
-  formativeDesc: string;
-  extendedLabel: string;
-  extendedDesc: string;
-  reflectionsLabel: string;
-  reflectionsDesc: string;
-  // Reflection lines
-  afterSession: string;
-  notesToShare: string;
-  coachHelp: string;
+  docTitle: string; lessonName: string; learningArea: string; designedBy: string;
+  gradeSection: string; noOfSessions: string; references: string; referencesDesc: string;
+  aiDeclaration: string; aiDeclarationDesc: string; aiDeclarationLink: string;
+  intentionsBanner: string; intentionsDesc: string; learningExpBanner: string;
+  learningExpDesc: string; assessmentBanner: string; assessmentDesc: string;
+  waysForwardBanner: string; waysForwardDesc: string; competencyLabel: string;
+  competencyDesc: string; objectivesLabel: string; objectivesDesc: string;
+  learnerContextLabel: string; learnerContextDesc: string; preLessonLabel: string;
+  preLessonDesc: string; flowLabel: string; flowDesc: string; resourcesLabel: string;
+  resourcesDesc: string; integrationLabel: string; integrationDesc: string;
+  formativeLabel: string; formativeDesc: string; extendedLabel: string; extendedDesc: string;
+  reflectionsLabel: string; reflectionsDesc: string;
+  afterSession: string; notesToShare: string; coachHelp: string;
 }
 
 const ENGLISH_LABELS: TemplateLabels = {
   docTitle: 'Lesson Plan Template',
-  lessonName: 'Name of Lesson',
-  learningArea: 'Learning Area/s',
+  lessonName: 'Name of Lesson', learningArea: 'Learning Area/s',
   designedBy: 'Designed by Teacher/s',
   gradeSection: 'Designed for which Grade Level and Section',
-  noOfSessions: 'No. of Sessions',
-  references: 'References',
+  noOfSessions: 'No. of Sessions', references: 'References',
   referencesDesc: '(books, websites, toolkits, etc.)',
   aiDeclaration: 'Declaration of AI use',
   aiDeclarationDesc: 'Cite how AI was used in the formulation of the lesson plan.',
@@ -111,51 +75,47 @@ const ENGLISH_LABELS: TemplateLabels = {
   extendedDesc: 'Suggest other learning experiences outside the classroom/class hours that learners may want to access to reinforce what they have learned, to spark their curiosities further, or that may provide them support in their areas of difficulty.',
   reflectionsLabel: 'Reflections:',
   reflectionsDesc: 'Think about what you need to change for the next session based on what happened today. Is there something the learners are interested in exploring?\n\nAre there some things you would like to share with your co-teachers, parents, or school leaders about your classroom experience? What would you like your instructional coach to help you with?',
-  afterSession: 'After Session',
-  notesToShare: 'Notes to share with co-teachers, parents, or school leaders:',
+  afterSession: 'After Session', notesToShare: 'Notes to share with co-teachers, parents, or school leaders:',
   coachHelp: 'I would like my instructional coach to help me with:',
 };
 
 const FILIPINO_LABELS: TemplateLabels = {
   docTitle: 'Template ng Plano sa Aralin',
-  lessonName: 'Pangalan ng Aralin',
-  learningArea: 'Larangang Pampagkatuto',
-  designedBy: 'Dinisenyo ng Guro/s',
-  gradeSection: 'Dinisenyo para sa Antas at Seksyon',
-  noOfSessions: 'Bilang ng Sesyon',
-  references: 'Mga Sanggunian',
+  lessonName: 'Pangalan ng Aralin', learningArea: 'Larangang Pampagkatuto',
+  designedBy: 'Dinisenyo ng Guro/s', gradeSection: 'Dinisenyo para sa Antas at Seksyon',
+  noOfSessions: 'Bilang ng Sesyon', references: 'Mga Sanggunian',
   referencesDesc: '(mga libro, website, toolkit, atbp.)',
   aiDeclaration: 'Deklarasyon ng Paggamit ng AI',
   aiDeclarationDesc: 'Ipaliwanag kung paano ginamit ang AI sa pagbuo ng plano sa aralin.',
   aiDeclarationLink: 'Tingnan ang DO 3 s.2026 Annex A.',
   intentionsBanner: 'Mga Layunin.',
-  intentionsDesc: 'Ang makabuluhang karanasan sa pagkatuto ay nakasalalay sa kung paano natin ito binabalangkas. Magsimula sa pamamagitan ng pagpapasya kung ano ang nais mong matutunan ng mga mag-aaral bago matapos ang aralin – panatilihin itong malinaw at simple. Tandaan: Ang pag-unawa sa umuusbong na konteksto ng iyong mga mag-aaral at ang pagdidisenyo ayon dito ay tumutulong na matiyak na ang iyong mga aralin ay nakakonekta sa kanila at may kaugnayan.',
+  intentionsDesc: 'Ang makabuluhang karanasan sa pagkatuto ay nakasalalay sa kung paano natin ito binabalangkas. Magsimula sa pamamagitan ng pagpapasya kung ano ang nais mong matutunan ng mga mag-aaral bago matapos ang aralin – panatilihin itong malinaw at simple.',
   learningExpBanner: 'Karanasan sa Pagkatuto.',
-  learningExpDesc: 'Ang karanasan sa pagkatuto ay parang isang maingat na dinisenyo na paglalakbay. Ang bawat aktibidad at interaksyon ay nagtatayo tungo sa makabuluhang pag-unawa at paglago. Tukuyin ang mga aktibidad at interaksyon upang matulungan ang mga mag-aaral na makakuha ng kaalaman, kasanayan, o pag-unawa sa isang may layuning paraan.',
+  learningExpDesc: 'Ang karanasan sa pagkatuto ay parang isang maingat na dinisenyo na paglalakbay. Ang bawat aktibidad at interaksyon ay nagtatayo tungo sa makabuluhang pag-unawa at paglago.',
   assessmentBanner: 'Pagtatasa.',
-  assessmentDesc: 'Inihahayag ng mga pagtatasa kung ano ang natamo ng mga mag-aaral at kung ano pa ang kailangan nilang tulong. Makakatulong ang mga ito sa pagbibigay ng impormasyon upang gabayan ang iyong susunod na tagubilin.',
+  assessmentDesc: 'Inihahayag ng mga pagtatasa kung ano ang natamo ng mga mag-aaral at kung ano pa ang kailangan nilang tulong.',
   waysForwardBanner: 'Mga Susunod na Hakbang.',
-  waysForwardDesc: 'Ang makabuluhang pagkatuto ay maaari ring mangyari sa labas ng silid-aralan – para sa parehong mga mag-aaral at guro. Huminto at pagnilayan kung ano ang nangyari ngayon.',
+  waysForwardDesc: 'Ang makabuluhang pagkatuto ay maaari ring mangyari sa labas ng silid-aralan. Huminto at pagnilayan kung ano ang nangyari ngayon.',
   competencyLabel: 'Kakayahang Pampagkatuto:',
   competencyDesc: 'Isulat ang kakayahan/mga kakayahan mula sa kurikulum na aming tinutukoy, at ang mga pamantayan ng nilalaman o pagganap na naaangkop sa mga sesyon.',
   objectivesLabel: 'Mga Layunin sa Pagkatuto:',
   objectivesDesc: 'Isulat ang mas maliliit na kaalaman, kasanayan, o gawain mula sa kakayahan na pag-aaralan ng mga mag-aaral at maipakikita sa pagtatapos ng mga sesyon.',
   learnerContextLabel: 'Konteksto ng Mag-aaral:',
-  learnerContextDesc: 'Isulat ang iyong mga obserbasyon tungkol sa iyong mga mag-aaral, at kung paano sila nagtatanghal o tumutugon sa mga karanasan sa pagkatuto kamakailan. Isama ang mga kalakasan, interes, at posibleng hadlang sa pagkatuto.',
+  learnerContextDesc: 'Isulat ang iyong mga obserbasyon tungkol sa iyong mga mag-aaral at kung paano sila tumutugon sa mga karanasan sa pagkatuto. Isama ang mga kalakasan, interes, at posibleng hadlang.',
   preLessonLabel: 'Bago ang Aralin:',
   preLessonDesc: 'Ilarawan kung paano mo tutulungan ang mga mag-aaral na maghanda para sa aralin.',
   flowLabel: 'Daloy:',
-  flowDesc: 'Ilarawan ang mga aktibidad na maaari mong ipatupad sa 1 o higit pang sesyon upang matugunan ang mga layunin sa pagkatuto.\n\nIlapat ang mga Prinsipyo sa Disenyo ng Pagkatuto sa pamamagitan ng pag-iisip tungkol sa kung paano:\n• gawing malinaw ang mga layunin para sa mga mag-aaral\n• gabayan ang mga mag-aaral bago hayaan silang subukan ang gawain nang mag-isa\n• suriin ang kalagayan ng kagalingan, pag-unawa, at kahusayan ng mga mag-aaral sa buong aralin\n• ikonekta ang mga bagong konsepto ngayon sa mga nakaraang kakayahan\n• hikayatin ang pakikipagtulungan sa pagitan ng mga mag-aaral\n• anyayahan ang mga mag-aaral na pagnilayan kung bakit ito mahalaga sa kanila\n• tiyaking kasama ang lahat para sa iba-ibang kakayahan, estilo ng pagkatuto, at konteksto ng mga mag-aaral',
+  flowDesc: 'Ilarawan ang mga aktibidad na maaari mong ipatupad sa 1 o higit pang sesyon upang matugunan ang mga layunin sa pagkatuto.\n\nIlapat ang mga Prinsipyo sa Disenyo ng Pagkatuto:\n• gawing malinaw ang mga layunin para sa mga mag-aaral\n• gabayan ang mga mag-aaral bago hayaan silang subukan ang gawain nang mag-isa\n• suriin ang kalagayan ng kagalingan, pag-unawa, at kahusayan ng mga mag-aaral\n• ikonekta ang mga bagong konsepto sa mga nakaraang kakayahan\n• hikayatin ang pakikipagtulungan sa pagitan ng mga mag-aaral\n• anyayahan ang mga mag-aaral na pagnilayan kung bakit ito mahalaga\n• tiyaking kasama ang lahat para sa iba-ibang kakayahan at estilo ng pagkatuto',
   resourcesLabel: 'Mga Kagamitan sa Pagkatuto:',
-  resourcesDesc: 'Ilista ang mga kagamitan sa pagkatuto na tutulong sa iyo na maabot ang iyong mga layunin. Tiyakin na available at inklusibo ang mga ito.\n\nIsama ang mga opsyon at alternatibo para sa mga emergency.',
+  resourcesDesc: 'Ilista ang mga kagamitan na tutulong sa iyo na maabot ang iyong mga layunin. Tiyakin na available at inklusibo. Isama ang mga alternatibo para sa emergency.',
   integrationLabel: 'Mga Pagkakataon para sa Integrasyon:',
-  integrationDesc: 'Isulat ang anumang mga posibilidad upang makabuluhang ikonekta sa isa pang larangan ng pagkatuto, espesyal na paksa, o teknolohiya. Isulat ang N/A kung wala.',
+  integrationDesc: 'Isulat ang anumang posibilidad na ikonekta sa ibang larangan ng pagkatuto, espesyal na paksa, o teknolohiya. N/A kung wala.',
   formativeLabel: 'Formative na Pagtatasa:',
-  formativeDesc: 'Lumikha ng isang gawain, aktibidad o mga katanungan upang suriin ang pagkatuto at magbigay ng feedback. Isama ang mga paraan para sa mga mag-aaral na humingi ng gabay o suporta.\n\nTandaang magbigay ng angkop na akomodasyon upang maipakita ng lahat ng mag-aaral ang kanilang pag-unawa (hal., iba-ibang format ng tugon, opsyon sa maliit na grupo, visual o auditory na suporta).',
+  formativeDesc: 'Lumikha ng gawain o katanungan upang suriin ang pagkatuto at magbigay ng feedback. Isama ang mga paraan para sa mga mag-aaral na humingi ng gabay.\n\nMagbigay ng angkop na akomodasyon upang maipakita ng lahat ang kanilang pag-unawa.',
   extendedLabel: 'Mga Karagdagang Pagkakataon sa Pagkatuto:',
-  extendedDesc: 'Magmungkahi ng iba pang mga karanasan sa pagkatuto sa labas ng silid-aralan/oras ng klase na maaaring nais i-access ng mga mag-aaral upang palakasin ang kanilang natutunan, palawakin ang kanilang mga pagkamausisa, o magbigay ng suporta sa kanilang mga lugar ng kahirapan.',
+  extendedDesc: 'Magmungkahi ng iba pang karanasan sa pagkatuto sa labas ng silid-aralan upang palakasin ang natutunan, palawakin ang pagkamausisa, o magbigay ng suporta.',
   reflectionsLabel: 'Mga Pagninilay:',
-  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon batay sa nangyari ngayon. Mayroon bang isang bagay na nais likhain ng mga mag-aaral?\n\nMayroon bang mga bagay na nais mong ibahagi sa iyong mga katrabahong guro, magulang, o mga lider ng paaralan tungkol sa iyong karanasan sa silid-aralan? Ano ang nais mong tulungan ng iyong instructional coach?',
+  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon. Mayroon bang nais ibahagi sa mga katrabaho, magulang, o mga lider ng paaralan?',
   afterSession: 'Pagkatapos ng Sesyon',
   notesToShare: 'Mga tala para ibahagi sa mga katrabahong guro, magulang, o mga lider ng paaralan:',
   coachHelp: 'Nais kong tulungan ako ng aking instructional coach sa:',
@@ -174,33 +134,79 @@ function emptyP(): Paragraph {
   return new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: '', size: 20 })] });
 }
 
+// Strips ALL ** markers and returns clean TextRuns with bold applied
 function parseBold(text: string): TextRun[] {
+  // First strip any stray leading/trailing ** that weren't closed properly
+  const cleaned = text.replace(/^\*+|\*+$/g, '').trim();
   const runs: TextRun[] = [];
-  const parts = text.split(/\*\*(.*?)\*\*/g);
+  const parts = cleaned.split(/\*\*(.*?)\*\*/g);
   parts.forEach((part, i) => {
     if (part === '') return;
+    // Strip any remaining stray asterisks
+    const safeText = part.replace(/\*/g, '');
+    if (!safeText) return;
     runs.push(new TextRun({
-      text: part,
+      text: safeText,
       bold: i % 2 === 1,
       size: 20,
       font: 'Arial',
       color: i % 2 === 1 ? DARK_BLUE : '000000',
     }));
   });
-  if (runs.length === 0) runs.push(new TextRun({ text, size: 20, font: 'Arial' }));
+  if (runs.length === 0) {
+    const safe = text.replace(/\*/g, '');
+    if (safe) runs.push(new TextRun({ text: safe, size: 20, font: 'Arial' }));
+  }
   return runs;
 }
 
 function bul(text: string): Paragraph {
-  const clean = text.replace(/^[\u2022\-\*•]\s*/, '').trim();
+  const clean = text.replace(/^[\u2022\-\*•]+\s*/, '').replace(/\*/g, '').trim();
   return new Paragraph({
     numbering: { reference: 'bullets', level: 0 },
     spacing: { after: 40 },
-    children: parseBold(clean),
+    children: [new TextRun({ text: clean, size: 20, font: 'Arial' })],
   });
 }
 
-// ── Convert AI text → Paragraphs ───────────────────────────────────
+// ── Subheading detector ────────────────────────────────────────────
+
+function isSubheadingLine(trimmed: string): boolean {
+  // **Any text:** or **Any text** alone on a line
+  if (/^\*\*[^*]+\*\*:?\s*$/.test(trimmed)) return true;
+  // English known subheadings
+  if (/^(Cognitive|Psychomotor|Affective|Materials|Procedure|Purpose|Objective Link|Guiding Questions):?$/i.test(trimmed)) return true;
+  if (/^(Detailed teacher instructions|Student actions and expected responses|Contextualized example problems):?$/i.test(trimmed)) return true;
+  if (/^(Differentiated Instructions|Synthesis and Reflection|Closing discussion|Exit ticket|Real-life connection):?$/i.test(trimmed)) return true;
+  if (/^(For All Learners|For Learners Who Need Support|For Advanced Learners):?$/i.test(trimmed)) return true;
+  if (/^(For All Learners \(Remediation\)|For Advanced Learners \(Enrichment\)|For Learners Who Need Reinforcement):?$/i.test(trimmed)) return true;
+  if (/^(Strengths and Prior Knowledge|Interests and Engagement Hooks|Possible Barriers to Learning|Accommodations and Support):?$/i.test(trimmed)) return true;
+  if (/^(Primary Materials|Reference Materials|Emergency Alternatives):?$/i.test(trimmed)) return true;
+  if (/^(Other Learning Areas|Special Topics|Career Awareness|Values Integration):?$/i.test(trimmed)) return true;
+  if (/^(Special Topics \/ Career Awareness|Technology \(Future Integration\)|Technology):?$/i.test(trimmed)) return true;
+  if (/^(Description|Administration|How results are used|Rubric or scoring guide|Accommodation for diverse learners):?$/i.test(trimmed)) return true;
+  if (/^(Sample warm-up question|Sample tasks or questions):?$/i.test(trimmed)) return true;
+  // Filipino known subheadings
+  if (/^(Kognitibo|Sikolohikal|Psikomotor|Pandama|Pagpapahalaga):?$/i.test(trimmed)) return true;
+  if (/^(Mga Kagamitan|Mga Hakbang|Layunin ng Aktibidad|Mga Gabay na Tanong|Kaugnay na Layunin):?$/i.test(trimmed)) return true;
+  if (/^(Mga tagubilin para sa guro|Mga aksyon ng mag-aaral at inaasahang tugon|Mga halimbawang kontekstwalisado):?$/i.test(trimmed)) return true;
+  if (/^(Mga Naka-differentiate na Tagubilin|Buod at Repleksyon|Pangwakas na talakayan|Koneksyon sa tunay na buhay):?$/i.test(trimmed)) return true;
+  if (/^Para sa (Lahat ng Mag-aaral|Mga Mag-aaral na Nangangailangan ng Tulong|mga Advanced na Mag-aaral):?$/i.test(trimmed)) return true;
+  if (/^Para sa (Mga Nangangailangan ng Remedyasyon|mga Advanced na Mag-aaral \(Pagpapayaman\)):?$/i.test(trimmed)) return true;
+  if (/^(Mga Kalakasan at Nakaraang Kaalaman|Mga Interes at Pakikipag-ugnayan|Mga Hadlang sa Pagkatuto|Mga Angkop na Tulong at Suporta):?$/i.test(trimmed)) return true;
+  if (/^(Pangunahing Kagamitan|Mga Sanggunian|Mga Alternatibo sa Emerhensya):?$/i.test(trimmed)) return true;
+  if (/^(Iba pang Larangang Pang-aralan|Mga Espesyal na Paksa|Kamalayan sa Karera|Integrasyon ng mga Pagpapahalaga|Teknolohiya):?$/i.test(trimmed)) return true;
+  if (/^(Mga Espesyal na Paksa \/ Kamalayan sa Karera|Teknolohiya \(Hinaharap na Integrasyon\)):?$/i.test(trimmed)) return true;
+  if (/^(Paglalarawan|Paraan ng pagbibigay|Paano gagamitin ang mga resulta|Rubrika o gabay sa pagmamarka):?$/i.test(trimmed)) return true;
+  if (/^(Mga angkop na tulong para sa iba't ibang mag-aaral|Halimbawa ng tanong para sa warm-up|Halimbawa ng mga tanong o gawain):?$/i.test(trimmed)) return true;
+  if (/^(SESSION|SESYON|PART|BAHAGI)\s+\d+/i.test(trimmed)) return true;
+  if (/^(Para sa Lahat ng Mag-aaral|Para sa Mga Nangangailangan ng Remedyasyon|Para sa mga Advanced na Mag-aaral \(Pagpapayaman\)):?$/i.test(trimmed)) return true;
+  if (/^(Para sa Mga Mag-aaral na Nangangailangan ng Tulong|Para sa mga Advanced na Mag-aaral):?$/i.test(trimmed)) return true;
+  if (/^(For All Learners|For Learners Who Need Reinforcement \(Remediation\)|For Advanced Learners \(Enrichment\)):?$/i.test(trimmed)) return true;
+  return false;
+}
+
+// ── Convert AI text → Paragraphs (THE KEY FIX IS HERE) ─────────────
 
 function toParas(text: string): Paragraph[] {
   if (!text || !text.trim()) return [emptyP()];
@@ -212,62 +218,31 @@ function toParas(text: string): Paragraph[] {
     if (!line.trim()) { result.push(emptyP()); continue; }
     const trimmed = line.trim();
 
-    // Numbered step
+    // Numbered step: "1. text" or "1) text" — render as bullet to avoid cross-section counter bleed
     if (/^\d+[\.\)]\s+/.test(trimmed)) {
-      const clean = trimmed.replace(/^\d+[\.\)]\s+/, '');
+      const clean = trimmed.replace(/^\d+[\.\)]\s+/, '').replace(/\*/g, '');
       result.push(new Paragraph({
-        numbering: { reference: 'numbers', level: 0 },
+        numbering: { reference: 'bullets', level: 0 },
         spacing: { after: 40 },
-        children: parseBold(clean),
+        children: parseBold(trimmed.replace(/^\d+[\.\)]\s+/, '')),
       }));
       continue;
     }
 
     // Bullet line
     if (/^[-•*]\s+/.test(trimmed)) {
-      const clean = trimmed.replace(/^[-•*]\s+/, '');
+      const clean = trimmed.replace(/^[-•*]\s+/, '').replace(/\*/g, '');
       result.push(new Paragraph({
         numbering: { reference: 'bullets', level: 0 },
         spacing: { after: 40 },
-        children: parseBold(clean),
+        children: parseBold(trimmed.replace(/^[-•*]\s+/, '')),
       }));
       continue;
     }
 
-    // ── Subheading detection (English + Filipino) ──────────────────
-    const isSubheading =
-      /^\*\*[^*]+\*\*:?\s*$/.test(trimmed) ||
-      // English
-      /^(Cognitive|Psychomotor|Affective):?$/i.test(trimmed) ||
-      /^(For All Learners|For Learners Who Need Support|For Advanced Learners|For Learners Who Want to Go Deeper):?$/i.test(trimmed) ||
-      /^(For All Learners \(Remediation\)|For Advanced Learners \(Enrichment\)):?$/i.test(trimmed) ||
-      /^(Materials|Procedure|Purpose|Guiding Questions|Objective Link):?$/i.test(trimmed) ||
-      /^(Strengths and Prior Knowledge|Interests and Engagement Hooks|Possible Barriers to Learning|Accommodations and Support):?$/i.test(trimmed) ||
-      /^(Primary Materials|Reference Materials|Emergency Alternatives):?$/i.test(trimmed) ||
-      /^(Other Learning Areas|Special Topics|Career Awareness|Values Integration|Technology):?$/i.test(trimmed) ||
-      /^(Differentiated Instructions|Synthesis and Reflection):?$/i.test(trimmed) ||
-      /^(Objective Link|Detailed teacher instructions|Student actions and expected responses):?$/i.test(trimmed) ||
-      /^(Description|Administration|How results are used|Rubric or scoring guide|Accommodation for diverse learners):?$/i.test(trimmed) ||
-      /^(Closing discussion|Exit ticket|Real-life connection):?$/i.test(trimmed) ||
-      /^(Special Topics \/ Career Awareness|Technology \(Future Integration\)):?$/i.test(trimmed) ||
-      // Filipino
-      /^(Kognitibo|Sikolohikal|Psikomotor|Pandama|Pagpapahalaga):?$/i.test(trimmed) ||
-      /^Para sa (Lahat ng Mag-aaral|Mga Mag-aaral na Nangangailangan ng Tulong|mga Advanced na Mag-aaral|Mga Nangangailangan ng Remedyasyon|mga Advanced na Mag-aaral \(Pagpapayaman\)):?$/i.test(trimmed) ||
-      /^(Mga Kagamitan|Mga Hakbang|Layunin ng Aktibidad|Mga Gabay na Tanong|Kaugnay na Layunin):?$/i.test(trimmed) ||
-      /^(Mga Kalakasan at Nakaraang Kaalaman|Mga Interes at Pakikipag-ugnayan|Mga Hadlang sa Pagkatuto|Mga Angkop na Tulong at Suporta):?$/i.test(trimmed) ||
-      /^(Pangunahing Kagamitan|Mga Sanggunian|Mga Alternatibo sa Emerhensya):?$/i.test(trimmed) ||
-      /^(Iba pang Larangang Pang-aralan|Mga Espesyal na Paksa|Kamalayan sa Karera|Integrasyon ng mga Pagpapahalaga|Teknolohiya):?$/i.test(trimmed) ||
-      /^(Mga Espesyal na Paksa \/ Kamalayan sa Karera|Teknolohiya \(Hinaharap na Integrasyon\)):?$/i.test(trimmed) ||
-      /^(Mga Naka-differentiate na Tagubilin|Buod at Repleksyon):?$/i.test(trimmed) ||
-      /^(Mga tagubilin para sa guro|Mga aksyon ng mag-aaral at inaasahang tugon|Mga halimbawang kontekstwalisado):?$/i.test(trimmed) ||
-      /^(Paglalarawan|Paraan ng pagbibigay|Paano gagamitin ang mga resulta|Rubrika o gabay sa pagmamarka|Mga angkop na tulong para sa iba't ibang mag-aaral):?$/i.test(trimmed) ||
-      /^(Pangwakas na talakayan|Exit ticket|Koneksyon sa tunay na buhay):?$/i.test(trimmed) ||
-      // Session/Part headers both languages
-      /^\*\*(SESSION|SESYON|PART|BAHAGI)\s+\d+/i.test(trimmed) ||
-      /^(SESSION|SESYON|PART|BAHAGI)\s+\d+/i.test(trimmed);
-
-    if (isSubheading) {
-      const clean = trimmed.replace(/\*\*/g, '').replace(/:$/, '');
+    // Subheading
+    if (isSubheadingLine(trimmed)) {
+      const clean = trimmed.replace(/\*\*/g, '').replace(/\*/g, '').replace(/:$/, '').trim();
       result.push(new Paragraph({
         spacing: { after: 60, before: 100 },
         children: [new TextRun({ text: clean + ':', bold: true, size: 20, font: 'Arial', color: DARK_BLUE })],
@@ -275,8 +250,11 @@ function toParas(text: string): Paragraph[] {
       continue;
     }
 
-    // Default: mixed bold/normal
-    result.push(new Paragraph({ spacing: { after: 60 }, children: parseBold(trimmed) }));
+    // Default: parse inline bold but STRIP any stray asterisks
+    const runs = parseBold(trimmed);
+    if (runs.length > 0) {
+      result.push(new Paragraph({ spacing: { after: 60 }, children: runs }));
+    }
   }
 
   return result.length > 0 ? result : [emptyP()];
@@ -288,20 +266,16 @@ function row2(labelParas: Paragraph[], contentParas: Paragraph[]): TableRow {
   return new TableRow({
     children: [
       new TableCell({
-        borders: thinB,
-        width: { size: LABEL_W, type: WidthType.DXA },
+        borders: thinB, width: { size: LABEL_W, type: WidthType.DXA },
         shading: { fill: LABEL_BG, type: ShadingType.CLEAR },
         margins: { top: 120, bottom: 120, left: 160, right: 160 },
-        verticalAlign: VerticalAlign.TOP,
-        children: labelParas,
+        verticalAlign: VerticalAlign.TOP, children: labelParas,
       }),
       new TableCell({
-        borders: thinB,
-        width: { size: CONTENT_W, type: WidthType.DXA },
+        borders: thinB, width: { size: CONTENT_W, type: WidthType.DXA },
         shading: { fill: WHITE, type: ShadingType.CLEAR },
         margins: { top: 120, bottom: 120, left: 160, right: 160 },
-        verticalAlign: VerticalAlign.TOP,
-        children: contentParas,
+        verticalAlign: VerticalAlign.TOP, children: contentParas,
       }),
     ],
   });
@@ -310,9 +284,7 @@ function row2(labelParas: Paragraph[], contentParas: Paragraph[]): TableRow {
 function banner(boldText: string, subtitle = ''): TableRow {
   return new TableRow({
     children: [new TableCell({
-      columnSpan: 2,
-      borders: fullB,
-      width: { size: W, type: WidthType.DXA },
+      columnSpan: 2, borders: fullB, width: { size: W, type: WidthType.DXA },
       shading: { fill: GRAY_BG, type: ShadingType.CLEAR },
       margins: { top: 120, bottom: 120, left: 160, right: 160 },
       children: [new Paragraph({
@@ -326,7 +298,6 @@ function banner(boldText: string, subtitle = ''): TableRow {
 }
 
 function labelCell(title: string, desc: string): Paragraph[] {
-  // desc may contain \n• for flow principles — render each line
   const lines = desc.split('\n');
   const paras: Paragraph[] = [p(title, false, 19, '000000', true), emptyP()];
   for (const line of lines) {
@@ -354,24 +325,23 @@ function parseSection(content: string, tag: string): string {
     'FLOW', 'LEARNING_RESOURCES', 'OPPORTUNITIES_FOR_INTEGRATION',
     'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING',
   ];
-
   const startTag = tag + ':';
   const startIdx = content.indexOf(startTag);
-  if (startIdx === -1) {
-    console.warn(`Tag not found: ${tag}`);
-    return '';
-  }
-
+  if (startIdx === -1) return '';
   const textStart = startIdx + startTag.length;
   let endIdx = content.length;
-
   for (const other of ALL_TAGS) {
     if (other === tag) continue;
     const pos = content.indexOf(other + ':', textStart);
     if (pos !== -1 && pos < endIdx) endIdx = pos;
   }
-
   return content.slice(textStart, endIdx).trim();
+  const result = content.slice(textStart, endIdx).trim()
+    .replace(/^\*{1,2}\s*/, '')
+    .replace(/\s*\*{1,2}$/, '');
+  
+  // Return placeholder if empty so the cell is never blank in the DOCX
+  return result || '(Pakitingnan ang buong lesson plan — hindi nakumpleto ng AI ang seksyong ito dahil sa limitasyon ng token. Subukang i-generate muli.)';
 }
 
 // ── Main export ────────────────────────────────────────────────────
@@ -388,16 +358,10 @@ export async function buildDocx(
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
   const get = (key: string) => {
     const text = parseSection(aiContent, key);
-    if (!text) {
-      console.warn(`Section ${key} not found or empty in AI output`);
-      return [emptyP()];
-    }
-    return toParas(text);
+    return text ? toParas(text) : [emptyP()];
   };
 
-  // Parse session count for reflection lines
   const sessionCount = parseInt(noOfSessions) || 3;
-
   const reflectionLines: Paragraph[] = [];
   for (let i = 1; i <= sessionCount; i++) {
     reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
@@ -414,9 +378,7 @@ export async function buildDocx(
         {
           reference: 'bullets',
           levels: [{
-            level: 0,
-            format: LevelFormat.BULLET,
-            text: '\u2022',
+            level: 0, format: LevelFormat.BULLET, text: '\u2022',
             alignment: AlignmentType.LEFT,
             style: {
               paragraph: { indent: { left: 560, hanging: 280 } },
@@ -427,9 +389,7 @@ export async function buildDocx(
         {
           reference: 'numbers',
           levels: [{
-            level: 0,
-            format: LevelFormat.DECIMAL,
-            text: '%1.',
+            level: 0, format: LevelFormat.DECIMAL, text: '%1.',
             alignment: AlignmentType.LEFT,
             style: {
               paragraph: { indent: { left: 560, hanging: 280 } },
@@ -448,14 +408,12 @@ export async function buildDocx(
       },
       children: [
 
-        // ── Document Title ──
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 200 },
           children: [new TextRun({ text: L.docTitle, bold: true, size: 24, font: 'Arial' })],
         }),
 
-        // ── TOP INFO TABLE ──
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
@@ -466,25 +424,11 @@ export async function buildDocx(
             row2([p(L.gradeSection, true)], [p(gradeSection)]),
             row2([p(L.noOfSessions, true)], [p(noOfSessions)]),
             row2(
-              [
-                p(L.references, true),
-                p(L.referencesDesc, false, 17, '555555', true),
-              ],
-              parseSection(aiContent, 'REFERENCES')
-                ? get('REFERENCES')
-                : [
-                    bul('DepEd Learner\'s Module'),
-                    bul('DepEd Teacher\'s Guide'),
-                    bul('K–12 MELC Curriculum Guide'),
-                  ]
+              [p(L.references, true), p(L.referencesDesc, false, 17, '555555', true)],
+              parseSection(aiContent, 'REFERENCES') ? get('REFERENCES') : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
             ),
             row2(
-              [
-                p(L.aiDeclaration, true),
-                emptyP(),
-                p(L.aiDeclarationDesc, false, 17, '555555', true),
-                p(L.aiDeclarationLink, false, 17, '1155CC', true),
-              ],
+              [p(L.aiDeclaration, true), emptyP(), p(L.aiDeclarationDesc, false, 17, '555555', true), p(L.aiDeclarationLink, false, 17, '1155CC', true)],
               get('DECLARATION_AI'),
             ),
           ],
@@ -492,85 +436,51 @@ export async function buildDocx(
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
-        // ── INTENTIONS / MGA LAYUNIN ──
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.intentionsBanner, L.intentionsDesc),
-            row2(
-              labelCell(L.competencyLabel, L.competencyDesc),
-              get('LEARNING_COMPETENCY'),
-            ),
-            row2(
-              labelCell(L.objectivesLabel, L.objectivesDesc),
-              get('LEARNING_OBJECTIVES'),
-            ),
-            row2(
-              labelCell(L.learnerContextLabel, L.learnerContextDesc),
-              get('LEARNER_CONTEXT'),
-            ),
+            row2(labelCell(L.competencyLabel, L.competencyDesc), get('LEARNING_COMPETENCY')),
+            row2(labelCell(L.objectivesLabel, L.objectivesDesc), get('LEARNING_OBJECTIVES')),
+            row2(labelCell(L.learnerContextLabel, L.learnerContextDesc), get('LEARNER_CONTEXT')),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
-        // ── LEARNING EXPERIENCE / KARANASAN SA PAGKATUTO ──
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.learningExpBanner, L.learningExpDesc),
-            row2(
-              labelCell(L.preLessonLabel, L.preLessonDesc),
-              get('PRE_LESSON'),
-            ),
-            row2(
-              labelCell(L.flowLabel, L.flowDesc),
-              get('FLOW'),
-            ),
-            row2(
-              labelCell(L.resourcesLabel, L.resourcesDesc),
-              get('LEARNING_RESOURCES'),
-            ),
-            row2(
-              labelCell(L.integrationLabel, L.integrationDesc),
-              get('OPPORTUNITIES_FOR_INTEGRATION'),
-            ),
+            row2(labelCell(L.preLessonLabel, L.preLessonDesc), get('PRE_LESSON')),
+            row2(labelCell(L.flowLabel, L.flowDesc), get('FLOW')),
+            row2(labelCell(L.resourcesLabel, L.resourcesDesc), get('LEARNING_RESOURCES')),
+            row2(labelCell(L.integrationLabel, L.integrationDesc), get('OPPORTUNITIES_FOR_INTEGRATION')),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
-        // ── ASSESSMENT / PAGTATASA ──
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.assessmentBanner, L.assessmentDesc),
-            row2(
-              labelCell(L.formativeLabel, L.formativeDesc),
-              get('FORMATIVE_ASSESSMENT'),
-            ),
+            row2(labelCell(L.formativeLabel, L.formativeDesc), get('FORMATIVE_ASSESSMENT')),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
-        // ── WAYS FORWARD / MGA SUSUNOD NA HAKBANG ──
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.waysForwardBanner, L.waysForwardDesc),
-            row2(
-              labelCell(L.extendedLabel, L.extendedDesc),
-              get('EXTENDED_LEARNING'),
-            ),
-            row2(
-              labelCell(L.reflectionsLabel, L.reflectionsDesc),
-              reflectionLines,
-            ),
+            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
+            row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
           ],
         }),
 

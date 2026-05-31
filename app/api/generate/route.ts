@@ -11,12 +11,9 @@ export async function POST(req: Request) {
     console.log('--- Generate request received ---');
 
     const body = await req.json();
-    console.log('Learning Area:', body.learningArea);
-    console.log('Lesson Name:', body.lessonName);
-
     const {
       lessonName, learningArea, teacherName, gradeSection,
-      competency, sessions, classroomDetails, schoolCity
+      competency, sessions, classroomDetails, schoolCity,
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
@@ -25,373 +22,437 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ_API_KEY not found in environment' }, { status: 500 });
+    const hasGroq = !!process.env.GROQ_API_KEY;
+    const hasGemini = !!process.env.GEMINI_API_KEY;
+    const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+
+    if (!hasGroq && !hasGemini && !hasOpenRouter) {
+      return NextResponse.json({ error: 'No AI API key found in environment. Please set GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY.' }, { status: 500 });
     }
 
-    console.log('Sending to Groq...');
-
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
-    console.log('Language mode:', isFilipino ? 'FILIPINO' : 'ENGLISH');
+    console.log('Language mode:', isFilipino ? 'FILIPINO' : 'ENGLISH', '| City:', city);
 
-    // ── Language-specific structural labels ──────────────────────────
+    // ── Labels ───────────────────────────────────────────────────
     const L = isFilipino ? {
-      objectiveLink:        'Kaugnay na Layunin',
-      teacherInstructions:  'Mga tagubilin para sa guro',
-      studentActions:       'Mga aksyon ng mag-aaral at inaasahang tugon',
-      exampleProblems:      'Mga halimbawang kontekstwalisado',
-      diffInstructions:     'Mga Naka-differentiate na Tagubilin',
-      forAll:               'Para sa Lahat ng Mag-aaral',
-      forSupport:           'Para sa Mga Nangangailangan ng Tulong',
-      forAdvanced:          'Para sa mga Advanced na Mag-aaral',
-      guidingQuestions:     'Mga Gabay na Tanong',
-      closingDiscussion:    'Pangwakas na talakayan',
-      exitTicket:           'Exit ticket',
-      realLifeConnection:   'Koneksyon sa tunay na buhay',
-      description:          'Paglalarawan',
-      administration:       'Paraan ng pagbibigay',
-      howResultsUsed:       'Paano gagamitin ang mga resulta',
-      rubric:               'Rubrika o gabay sa pagmamarka',
-      accommodation:        'Mga angkop na tulong para sa iba\'t ibang mag-aaral',
-      sessionLabel:         'SESYON',
-      partLabel:            'BAHAGI',
-      synthesisLabel:       'Buod at Repleksyon',
-      cognitive:            'Kognitibo',
-      psychomotor:          'Sikolohikal',
-      affective:            'Pandama',
-      byEndOfSession:       'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
-      warmupQuestion:       'Halimbawa ng tanong para sa warm-up',
-      sampleTasks:          'Halimbawa ng mga tanong o gawain',
+      cognitive:          'Kognitibo',
+      psychomotor:        'Sikolohikal',
+      affective:          'Pandama',
+      byEnd:              'Sa katapusan ng sesyong ito, maisasagawa ng mga mag-aaral ang',
+      strengths:          'Mga Kalakasan at Nakaraang Kaalaman',
+      interests:          'Mga Interes at Pakikipag-ugnayan',
+      barriers:           'Mga Hadlang sa Pagkatuto',
+      support:            'Mga Angkop na Tulong at Suporta',
+      materials:          'Mga Kagamitan',
+      procedure:          'Mga Hakbang',
+      purpose:            'Layunin ng Aktibidad',
+      warmup:             'Halimbawa ng tanong para sa warm-up',
+      objLink:            'Kaugnay na Layunin',
+      teacherScript:      'Mga tagubilin para sa guro',
+      studentActions:     'Mga aksyon ng mag-aaral at inaasahang tugon',
+      examples:           'Mga halimbawang kontekstwalisado',
+      diffLabel:          'Mga Naka-differentiate na Tagubilin',
+      forAll:             'Para sa Lahat ng Mag-aaral',
+      forSupport:         'Para sa Mga Nangangailangan ng Tulong',
+      forAdvanced:        'Para sa mga Advanced na Mag-aaral (Pagpapayaman)',
+      forRemediation:     'Para sa Mga Nangangailangan ng Remedyasyon',
+      guiding:            'Mga Gabay na Tanong',
+      closing:            'Pangwakas na talakayan',
+      exit:               'Exit Ticket',
+      realLife:           'Koneksyon sa tunay na buhay',
+      session:            'SESYON',
+      part:               'BAHAGI',
+      synthesis:          'Buod at Repleksyon',
+      primaryMat:         'Pangunahing Kagamitan',
+      refMat:             'Mga Sanggunian',
+      emergency:          'Mga Alternatibo sa Emerhensya',
+      otherAreas:         'Iba pang Larangang Pang-aralan',
+      specialTopics:      'Mga Espesyal na Paksa / Kamalayan sa Karera',
+      values:             'Integrasyon ng mga Pagpapahalaga',
+      tech:               'Teknolohiya (Hinaharap na Integrasyon)',
+      descLabel:          'Paglalarawan',
+      sampleTasks:        'Halimbawa ng mga tanong o gawain',
+      admin:              'Paraan ng pagbibigay',
+      howUsed:            'Paano gagamitin ang mga resulta',
+      rubric:             'Rubrika o gabay sa pagmamarka',
+      accom:              "Mga angkop na tulong para sa iba't ibang mag-aaral",
     } : {
-      objectiveLink:        'Objective Link',
-      teacherInstructions:  'Detailed teacher instructions',
-      studentActions:       'Student actions and expected responses',
-      exampleProblems:      'Contextualized example problems using ${city} landmarks',
-      diffInstructions:     'Differentiated Instructions',
-      forAll:               'For All Learners',
-      forSupport:           'For Learners Who Need Support',
-      forAdvanced:          'For Advanced Learners',
-      guidingQuestions:     'Guiding Questions',
-      closingDiscussion:    'Closing discussion',
-      exitTicket:           'Exit ticket',
-      realLifeConnection:   'Real-life connection',
-      description:          'Description',
-      administration:       'Administration',
-      howResultsUsed:       'How results are used',
-      rubric:               'Rubric or scoring guide',
-      accommodation:        'Accommodation for diverse learners',
-      sessionLabel:         'SESSION',
-      partLabel:            'PART',
-      synthesisLabel:       'Synthesis and Reflection',
-      cognitive:            'Cognitive',
-      psychomotor:          'Psychomotor',
-      affective:            'Affective',
-      byEndOfSession:       'By the end of this session, the learners will be able to',
-      warmupQuestion:       'Sample warm-up question',
-      sampleTasks:          'Sample tasks or questions',
+      cognitive:          'Cognitive',
+      psychomotor:        'Psychomotor',
+      affective:          'Affective',
+      byEnd:              'By the end of this session, learners will be able to',
+      strengths:          'Strengths and Prior Knowledge',
+      interests:          'Interests and Engagement Hooks',
+      barriers:           'Possible Barriers to Learning',
+      support:            'Accommodations and Support',
+      materials:          'Materials',
+      procedure:          'Procedure',
+      purpose:            'Purpose',
+      warmup:             'Sample warm-up question',
+      objLink:            'Objective Link',
+      teacherScript:      'Teacher instructions (script)',
+      studentActions:     'Student actions and expected responses',
+      examples:           `Contextualized examples using ${city} landmarks`,
+      diffLabel:          'Differentiated Instructions',
+      forAll:             'For All Learners',
+      forSupport:         'For Learners Who Need Support',
+      forAdvanced:        'For Advanced Learners (Enrichment)',
+      forRemediation:     'For Learners Who Need Reinforcement (Remediation)',
+      guiding:            'Guiding Questions',
+      closing:            'Closing discussion',
+      exit:               'Exit ticket',
+      realLife:           'Real-life connection',
+      session:            'SESSION',
+      part:               'PART',
+      synthesis:          'Synthesis and Reflection',
+      primaryMat:         'Primary Materials',
+      refMat:             'Reference Materials',
+      emergency:          'Emergency Alternatives',
+      otherAreas:         'Other Learning Areas',
+      specialTopics:      'Special Topics / Career Awareness',
+      values:             'Values Integration',
+      tech:               'Technology (Future Integration)',
+      descLabel:          'Description',
+      sampleTasks:        'Sample tasks or questions',
+      admin:              'Administration',
+      howUsed:            'How results are used',
+      rubric:             'Rubric or scoring guide',
+      accom:              'Accommodation for diverse learners',
     };
 
-    const langRule = isFilipino
-      ? `PANUNTUNAN SA WIKA: Isulat ang BUONG nilalaman sa natural, propesyonal na FILIPINO/TAGALOG. 
-         Bawal ang Ingles sa loob ng mga seksyon maliban sa mga naka-ALL CAPS na section key labels (FLOW:, LEARNING_OBJECTIVES:, atbp.) at sa mga terminolohiyang teknikal na walang Filipino equivalent (hal. graph, demand curve).
-         Ang lahat ng subheading, tagubilin, tanong, at paliwanag ay dapat sa Filipino.`
-      : `LANGUAGE RULE: Write the ENTIRE lesson plan content in ENGLISH only.`;
+    const lang = isFilipino
+      ? 'FILIPINO/TAGALOG. Lahat ng salita, subheading, at paliwanag ay sa Filipino. Bawal ang Ingles maliban sa ALL CAPS section keys at teknikal na termino.'
+      : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys.';
 
-    // ── Language-specific detailed instructions ─────────────────────
-    const flowInstructions = isFilipino ? `
-FLOW:
-Isulat ang KUMPLETONG daloy ng aralin para sa LAHAT ng sesyon. Para sa bawat bahagi:
+    // ── System prompt (static rules — kept separate to reduce user token count) ──
+    const systemPrompt = `You are an expert DepEd Philippines curriculum writer and master teacher.
+Write COMPLETE, DEEPLY SPECIFIC, CLASSROOM-READY ILAW lesson plans.
+ABSOLUTE RULES — never violate:
+- USE ONLY BULLET POINTS (•) for every list. NO numbered lists anywhere.
+- Every teacher script is word-for-word. Never write "discuss the topic" or "ask students about X".
+- Every example names a SPECIFIC local place, price, person, or event from the city provided. Never generic.
+- Every guiding question is written in full and labeled: [KNOWLEDGE] [COMPREHENSION] [APPLICATION] [ANALYSIS] [EVALUATION]
+- NEVER skip or merge sessions. PRE_LESSON and FLOW must have a separate full entry for EVERY session.
+- A substitute teacher must be able to run every session using ONLY this document.`;
 
-**SESYON [N] - [Pamagat] ([kabuuang oras])**
+    // ── User prompt (dynamic lesson data only) ────────────────────────────
+    const prompt = `Write a COMPLETE ILAW lesson plan in ${lang}.
 
-**${L.partLabel} 1 - [Pangalan ng Aktibidad] ([oras])**
-**${L.objectiveLink}:** [Isulat ang TIYAK na layunin mula sa LEARNING_OBJECTIVES na tinutugunan ng bahaging ito]
-**${L.teacherInstructions}:** Isulat ang mga tagubilin ng guro bilang SCRIPT. Kasama ang:
-  - Eksaktong pambungad na salita (hal. "Sabihin: 'Klase, tingnan ninyo ang larawang ito...'")
-  - Hakbang-hakbang na pagtuturo sa pisara
-  - Mga tanong para masuri ang pag-unawa ng mga mag-aaral habang nagtatakbo ang aktibidad
-  - Pangwakas na pahayag para sa susunod na bahagi
-**${L.studentActions}:** Ilarawan ang EKSAKTONG ginagawa, sinasabi, at ginagawa ng mga mag-aaral — hindi lang "makinig at kumuha ng tala." Kasama ang inaasahang verbal na tugon sa mga tanong ng guro.
-**${L.exampleProblems}:** Isulat ang HINDI BABABA SA 2 GANAP NA NASOSOLUSYUNAN na kontekstwalisadong halimbawa gamit ang mga TIYAK na lugar sa ${city} na may TUNAY na numero. Ipakita ang kumpletong hakbang ng solusyon.
-  Gamitin ang mga lokal na konteksto tulad ng: mga palengke, paaralan, tanggapan ng pamahalaan, pamilihan, transportasyon, at mga sikat na lugar sa ${city}.
-**${L.diffInstructions}:**
-**${L.forAll}:** [Tiyak na aktibidad na may eksaktong tagubilin — ano ang gagawin nila, anong materyales, anong output]
-**${L.forSupport}:** [Scaffolded na bersyon — hal. bahagyang nasosolusyunan na problema na pupunan lang ng mga mag-aaral, o reference card ng formula]
-**${L.forAdvanced}:** [Tunay na extension — mas mahirap na problema, patunay, real-world application, o paglikha ng sariling problema]
-**${L.guidingQuestions}:**
-- [Tanong sa recall — direkta mula sa nilalaman ng aralin]
-- [Tanong sa analysis — nangangailangan ng paghahambing, pagpapaliwanag, o pagbibigay-katwiran]
-- [Tanong sa application — gumagamit ng tiyak na sitwasyon sa ${city} na may mga numero]
-
-**${L.partLabel} 3 - ${L.synthesisLabel} ([oras])**
-**${L.closingDiscussion}:** Isulat ang AKTWAL na mga tanong sa talakayan na itatanong ng guro sa klase (hindi bababa sa 3 tanong). Kasama ang inaasahang tugon ng mga mag-aaral.
-**${L.exitTicket}:** Isulat ang EKSAKTONG tanong o gawaing sasaguting ng mga mag-aaral bago umalis. Dapat masagot sa loob ng 2-3 minuto at direktang sinusukat ang layunin ng sesyon.
-**${L.realLifeConnection}:** Isulat ang tiyak na 2-3 pangungusap na sasabihin ng guro upang ikonekta ang aralin sa tunay na konteksto sa ${city} na personal na maiuugnay ng mga mag-aaral.
-` : `
-FLOW:
-Write the COMPLETE lesson flow for ALL sessions. For each part of each session:
-
-**SESSION [N] - [Title] ([total time])**
-
-**${L.partLabel} 1 - [Activity Name] ([time])**
-**${L.objectiveLink}:** [State the SPECIFIC objective from LEARNING_OBJECTIVES this part addresses]
-**${L.teacherInstructions}:** Write as a TEACHING SCRIPT. Include:
-  - Exact opening words (e.g. "Say to the class: 'Look at this diagram...'")
-  - Step-by-step board work or demonstration with exact content
-  - Mid-activity comprehension check questions with expected responses
-  - Transition statement to the next part
-**${L.studentActions}:** Describe exactly what students DO, SAY, and PRODUCE — not just "listen and take notes." Include expected verbal responses.
-**${L.exampleProblems}:** Write AT LEAST 2 FULLY SOLVED contextualized problems using SPECIFIC ${city} landmarks with REAL numbers. Show every solution step.
-  Use local contexts such as: local markets, schools, government offices, malls, transportation routes, tourist spots, and landmarks in ${city}.
-**${L.diffInstructions}:**
-**${L.forAll}:** [Specific activity with exact instructions — what they do, with what materials, producing what output]
-**${L.forSupport}:** [Scaffolded version — e.g. partially solved problem where students fill in only steps 3-4, or a formula reference card]
-**${L.forAdvanced}:** [Genuine extension — harder problem, a proof, real-world application, or creating their own problem]
-**${L.guidingQuestions}:**
-- [Recall question — directly from lesson content]
-- [Analysis question — requires comparing, explaining, or justifying]
-- [Application question — uses a specific ${city} scenario with numbers]
-
-**${L.partLabel} 3 - ${L.synthesisLabel} ([time])**
-**${L.closingDiscussion}:** Write the ACTUAL discussion questions (at least 3) the teacher will ask. Include expected student responses.
-**${L.exitTicket}:** Write the EXACT exit ticket question students answer before leaving. Must be completable in 2-3 minutes and directly assess the session objective.
-**${L.realLifeConnection}:** Write a specific 2-3 sentence statement connecting today's lesson to a real ${city} context students can personally relate to.
-`;
-
-    const preLessonInstructions = isFilipino ? `
-PRE_LESSON:
-Para sa BAWAT sesyon, isulat ang kumpletong warm-up activity:
-
-**Session [N] - "[Pangalan ng Aktibidad]" ([oras])**
-**Materials:** [listahan]
-**Procedure:**
-1. [Eksaktong hakbang — ano ang gagawin ng guro]
-2. [Ano ang sasabihin ng guro — word-for-word kung posible]
-3. [Paano mag-re-respond ang mga mag-aaral]
-4. [Paano ito nag-a-activate ng prior knowledge]
-**Purpose:** [Paliwanag kung bakit ito epektibo para sa araling ito]
-**${L.warmupQuestion}:** "[Write the actual warm-up question using ${city} context]"
-` : `
-PRE_LESSON:
-For EACH session, write the complete warm-up activity:
-
-**Session [N] - "[Activity Name]" ([time])**
-**Materials:** [list]
-**Procedure:**
-1. [Exact teacher step]
-2. [Exact teacher script]
-3. [Student response]
-4. [How it activates prior knowledge]
-**Purpose:** [Why this is effective]
-**${L.warmupQuestion}:** "[Actual warm-up question using ${city} context]"
-`;
-
-    const formativeInstructions = isFilipino ? `
-FORMATIVE_ASSESSMENT:
-Para sa BAWAT sesyon, isulat ang detalyadong formative assessment:
-
-**Session [N] - [Pangalan ng Assessment Tool]**
-**${L.description}:**
-**${L.sampleTasks}:**
-**${L.administration}:**
-**${L.howResultsUsed}:**
-**${L.rubric}:**
-**${L.accommodation}:**
-` : `
-FORMATIVE_ASSESSMENT:
-For EACH session, write the detailed formative assessment:
-
-**Session [N] - [Assessment Tool Name]**
-**${L.description}:**
-**${L.sampleTasks}:**
-**${L.administration}:**
-**${L.howResultsUsed}:**
-**${L.rubric}:**
-**${L.accommodation}:**
-`;
-
-    const absoluteRules = `
-ABSOLUTE RULES — VIOLATIONS MAKE THE LESSON PLAN UNUSABLE:
-1. Every contextualized example MUST name a SPECIFIC landmark, place, or situation in ${city} with ACTUAL numbers.
-2. If no projector/TV in classroom details, use ONLY board, chalk, cartolina, flashcards, string, ruler.
-3. Every FLOW PART must have Differentiated Instructions with ALL THREE levels fully written — never write "provide extra support" or "provide more complex problems" as those are unacceptable placeholders.
-4. PRE_LESSON must include a warm-up for EVERY session — not just Session 1.
-5. PART 3 Synthesis must have actual written discussion questions, an actual exit ticket question, and an actual real-life connection statement — never leave these as single-word labels.
-6. FORMATIVE_ASSESSMENT must include fully written assessment items with complete problem statements or questions — not just descriptions of what the assessment is.
-7. FLOW teacher instructions must read like a teaching script — what the teacher physically does and says, word for word.
-8. Contextualized examples must show COMPLETE solutions with numbered steps — not just mention the context.
-9. Do NOT truncate, summarize, or skip any section. Every section must be fully written.
-10. ${isFilipino ? 'Lahat ng nilalaman ay sa FILIPINO/TAGALOG. Bawal ang Ingles maliban sa section key labels at mga teknikal na terminong walang katumbas sa Filipino.' : 'Write ALL content in ENGLISH only.'}
-`;
-
-    const prompt = `You are a master DepEd curriculum writer and instructional coach in the Philippines with 20 years of experience writing detailed, classroom-ready ILAW Framework lesson plans for DepEd public secondary schools.
-${langRule}
-
-Your task is to write a COMPLETE, DETAILED, CLASSROOM-READY lesson plan. Every section must be THOROUGH. A substitute teacher should be able to pick this up and teach it without any other reference.
-
-Use EXACTLY these section labels (ALL CAPS, followed by colon):
+Output sections in this EXACT order using ALL-CAPS labels followed by colon:
 
 REFERENCES:
-List 4-6 specific references with page numbers and MELC code.
+4-6 real DepEd references with page numbers and MELC code.
 
 DECLARATION_AI:
-3-4 sentences about AI assistance, teacher review, and DO 3 s.2026 Annex A compliance.
+${isFilipino
+  ? '3-4 pangungusap sa FILIPINO tungkol sa paggamit ng Gemini AI, pagsusuri ng guro, at pagsunod sa DO 3 s.2026 Annex A.'
+  : '3-4 sentences in ENGLISH about Gemini AI assistance, teacher review, and DO 3 s.2026 Annex A compliance.'}
 
 LEARNING_COMPETENCY:
-Full MELC competency text, MELC code, Content Standard, and Performance Standard.
+Full MELC text, MELC code, Content Standard, Performance Standard.
 
 LEARNING_OBJECTIVES:
-For EACH session under bold session headers, write at least 3 objectives each for Cognitive, Psychomotor, and Affective domains. Use "By the end of this session, the learners will be able to..." format.
-**${L.cognitive}:** ${L.byEndOfSession}...
-**${L.psychomotor}:** ${L.byEndOfSession}...
-**${L.affective}:** ${L.byEndOfSession}...
+For EACH session, bold header then 3 objectives per domain:
+**${L.cognitive}:** ${L.byEnd}...
+**${L.psychomotor}:** ${L.byEnd}...
+**${L.affective}:** ${L.byEnd}...
 
 LEARNER_CONTEXT:
-Write 4 subsections:
-**Strengths and Prior Knowledge:** at least 3 bullets
-**Interests and Engagement Hooks:** at least 3 bullets
-**Possible Barriers to Learning:** at least 4 bullets
-**Accommodations and Support:** at least 4 bullets
+**${L.strengths}:** 3+ specific bullets
+**${L.interests}:** 3+ bullets relevant to ${city} learners
+**${L.barriers}:** 4+ specific bullets
+**${L.support}:** 4+ actionable bullets
 
-${preLessonInstructions}
+PRE_LESSON:
+For EVERY session (do not skip any):
+**${L.session} N - "Activity Name" (time)**
+**${L.materials}:** list
+**${L.procedure}:**
+1. Exact teacher action
+2. Word-for-word teacher script using ${city} context
+3. Expected student response
+4. How it activates prior knowledge
+**${L.purpose}:** why this prepares learners
+**${L.warmup}:** "Actual question using ${city} context"
 
-${flowInstructions}
+FLOW:
+For EVERY session and every part:
+**${L.session} N - Title (total time)**
+**${L.part} 1 - Activity Name (time)**
+**${L.objLink}:** specific objective addressed
+**${L.teacherScript}:** Word-for-word script: opening, board work steps, comprehension checks, transition
+**${L.studentActions}:** exactly what students do, say, and produce
+**${L.examples}:** 2+ fully solved problems with REAL numbers from ${city} (show every step)
+**${L.diffLabel}:**
+**${L.forAll}:** exact instructions
+**${L.forSupport}:** scaffolded version
+**${L.forAdvanced}:** genuine extension task
+**${L.guiding}:**
+- recall question
+- analysis question
+- application question using ${city}
+**${L.part} 3 - ${L.synthesis} (time)**
+**${L.closing}:** 3+ actual discussion questions with expected responses
+**${L.exit}:** exact question answerable in 2-3 minutes
+**${L.realLife}:** 2-3 sentences connecting lesson to ${city} context
 
 LEARNING_RESOURCES:
-**Primary Materials:** bullets
-**Reference Materials:** bullets with page numbers
-**Emergency Alternatives:** at least 3 contingency plans
+**${L.primaryMat}:** specific bullets
+**${L.refMat}:** bullets with page numbers
+**${L.emergency}:** 3+ contingency plans
 
 OPPORTUNITIES_FOR_INTEGRATION:
-**Other Learning Areas:** at least 3 subject connections
-**Special Topics / Career Awareness:** at least 2 Residence City career connections
-**Values Integration:** Filipino values connected to the lesson
-**Technology (Future Integration):** free tools for future use
+**${L.otherAreas}:** 3+ connections
+**${L.specialTopics}:** 2+ career connections in ${city}
+**${L.values}:** Filipino values in this lesson
+**${L.tech}:** free digital tools
 
-${formativeInstructions}
+FORMATIVE_ASSESSMENT:
+For EVERY session:
+**${L.session} N - Assessment Tool Name**
+**${L.descLabel}:** what it measures
+**${L.sampleTasks}:**
+1. Full question/task with ${city} context
+2. Full question/task
+3. Full question/task
+**${L.admin}:** how and how long
+**${L.howUsed}:** specific teacher action based on results
+**${L.rubric}:**
+4 - descriptor
+3 - descriptor
+2 - descriptor
+1 - descriptor
+**${L.accom}:** specific accommodations
 
 EXTENDED_LEARNING:
-**For All Learners:** 2 tasks with Residence City context
-**For Learners Who Need Reinforcement (Remediation):** 2 scaffolded tasks
-**For Advanced Learners (Enrichment):** 2 challenging tasks
+**${L.forAll}:** 2 tasks with ${city} context
+**${L.forRemediation}:** 2 scaffolded tasks
+**${L.forAdvanced}:** 2 challenging tasks
 
 ---
-LESSON DETAILS:
-- Name of Lesson: ${lessonName}
-- Learning Area: ${learningArea}
-- Teacher: ${teacherName}
-- Grade Level and Section: ${gradeSection}
-- Learning Competency: ${competency}
-- Sessions: ${sessions}
-- Classroom Details: ${classroomDetails}
-- School City: ${city}
+LESSON: ${lessonName} | AREA: ${learningArea} | TEACHER: ${teacherName}
+GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
+COMPETENCY: ${competency}
+CLASSROOM: ${classroomDetails}
+${!classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv') ? 'NO PROJECTOR/TV: Use only board, chalk, cartolina, flashcards.' : ''}
 
-${absoluteRules}`;
-
-    const GROQ_MODELS = [
-      'llama-3.3-70b-versatile',
-      'meta-llama/llama-4-scout-17b-16e-instruct',
-      'openai/gpt-oss-120b',
-      'llama-3.1-8b-instant',
-    ];
-
-    // OpenRouter free models as final fallback (separate quota entirely)
-    const OPENROUTER_MODELS = [
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'google/gemini-2.0-flash-exp:free',
-    ];
+Write in ${lang}. Use ONLY bullet points (•). Word-for-word scripts. Specific ${city} examples.`;
 
     let completion: any = null;
     let lastError: any = null;
 
-    // ── Try Groq models first ──
-    for (const model of GROQ_MODELS) {
+    // ── 1. Try Groq ───────────────────────────────────────────────
+    if (hasGroq) {
+      const PREFERRED = [
+        'llama-3.3-70b-versatile',
+        'meta-llama/llama-4-scout-17b-16e-instruct',
+        'llama-3.1-70b-versatile',
+        'llama-3.1-8b-instant',
+        'llama3-70b-8192',
+      ];
+
+      let GROQ_MODELS: string[] = PREFERRED;
       try {
-        console.log('Trying Groq model:', model);
-        completion = await groq.chat.completions.create({
-          model,
-          max_tokens: 8192,      // raised from 4096
-          temperature: 0.7,
-          messages: [{ role: 'user', content: prompt }],
+        const r = await fetch('https://api.groq.com/openai/v1/models', {
+          headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
         });
-        console.log('Success with Groq model:', model);
-        break;
-      } catch (err: any) {
-        console.warn(`Groq model ${model} failed:`, err?.message);
-        lastError = err;
-        const isRateLimit = err?.message?.includes('rate_limit') ||
-                            err?.message?.includes('429') ||
-                            err?.status === 429;
-        if (!isRateLimit) throw err;
+        if (r.ok) {
+          const d = await r.json();
+          const live = new Set<string>(
+            (d.data || []).filter((m: any) => m.active !== false).map((m: any) => m.id as string)
+          );
+          const verified = PREFERRED.filter(id => live.has(id));
+          const extras = [...live].filter(id =>
+            !verified.includes(id) &&
+            (id.includes('llama') || id.includes('qwen') || id.includes('gpt-oss') || id.includes('deepseek')) &&
+            !id.includes('guard') && !id.includes('whisper') && !id.includes('tts') && !id.includes('vision')
+          );
+          GROQ_MODELS = verified.length > 0 ? [...verified, ...extras.slice(0, 3)] : PREFERRED;
+          console.log('Groq models to try:', GROQ_MODELS.join(', '));
+        }
+      } catch (e) {
+        console.warn('Groq model list fetch failed, using defaults');
+      }
+
+      for (const model of GROQ_MODELS) {
+        try {
+          console.log('Trying Groq model:', model);
+          completion = await groq.chat.completions.create({
+            model,
+            max_tokens: 8192,
+            temperature: 0.7,
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
+          });
+          console.log('Groq success:', model, '| finish:', completion.choices[0].finish_reason);
+          break;
+        } catch (err: any) {
+          console.warn(`Groq ${model} failed:`, err?.message);
+          lastError = err;
+          const skip = err?.message?.includes('rate_limit') || err?.message?.includes('429') ||
+                       err?.message?.includes('413') || err?.status === 429 || err?.status === 413 ||
+                       err?.message?.includes('Request too large') || err?.message?.includes('model_not_found') ||
+                       err?.message?.includes('does not exist') || err?.message?.includes('decommissioned');
+          if (!skip) throw err;
+        }
       }
     }
 
-    // ── Fallback to OpenRouter if all Groq models exhausted ──
-    if (!completion && process.env.OPENROUTER_API_KEY) {
-      for (const model of OPENROUTER_MODELS) {
+    // ── 2. Try Gemini (if Groq failed or unavailable) ─────────────
+    if (!completion && hasGemini) {
+      const GEMINI_MODELS = [
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.5-pro-preview-06-05',
+      ];
+
+      for (const model of GEMINI_MODELS) {
         try {
-          console.log('Trying OpenRouter model:', model);
-          const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          console.log('Trying Gemini model:', model);
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+          const r = await fetch(url, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-              'HTTP-Referer': 'https://ilaw-generator.vercel.app',
-              'X-Title': 'ILAW Lesson Plan Generator',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model,
-              max_tokens: 8192,
-              temperature: 0.7,
-              messages: [{ role: 'user', content: prompt }],
+              system_instruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                maxOutputTokens: 8192,
+                temperature: 0.7,
+              },
             }),
           });
-          const orData = await orRes.json();
-          if (orData.choices?.[0]?.message?.content) {
-            // Normalize to same shape as Groq response
-            completion = { choices: [{ message: { content: orData.choices[0].message.content }, finish_reason: 'stop' }] };
-            console.log('Success with OpenRouter model:', model);
+
+          const d = await r.json();
+
+          if (d.error) {
+            const isRateLimit = d.error.code === 429 || d.error.status === 'RESOURCE_EXHAUSTED';
+            console.warn(`Gemini ${model} error:`, d.error.message);
+            lastError = new Error(d.error.message);
+            if (isRateLimit) continue; // try next model
+            throw new Error(d.error.message);
+          }
+
+          const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            completion = {
+              choices: [{ message: { content: text }, finish_reason: 'stop' }],
+            };
+            console.log('Gemini success:', model);
             break;
           }
-          lastError = new Error(orData.error?.message || `OpenRouter model ${model} returned no content`);
+
+          lastError = new Error(`Gemini ${model} returned no content`);
         } catch (err: any) {
-          console.warn(`OpenRouter model ${model} failed:`, err?.message);
+          console.warn(`Gemini ${model} failed:`, err?.message);
           lastError = err;
         }
       }
     }
 
-if (!completion) {
-  const waitMsg = lastError?.message?.match(/try again in (.+?)\./)?.[1];
-  throw new Error(
-    waitMsg
-      ? `All models are rate limited. Please try again in ${waitMsg}.`
-      : 'All models are currently rate limited. Please try again in a few minutes.'
-  );
-}
+    // ── 3. Try OpenRouter (last resort) ──────────────────────────
+    if (!completion && hasOpenRouter) {
+      const OPENROUTER_MODELS = [
+        'deepseek/deepseek-v3:free',
+        'deepseek/deepseek-r1:free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+      ];
 
-    console.log('Groq responded. Finish reason:', completion.choices[0].finish_reason);
-
-    const content = completion.choices[0].message.content ?? '';
-
-    if (!content) {
-      return NextResponse.json({ error: 'Groq returned empty content' }, { status: 500 });
+      for (const model of OPENROUTER_MODELS) {
+        try {
+          console.log('Trying OpenRouter:', model);
+          const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://ilaw-generator.vercel.app',
+              'X-Title': 'ILAW Lesson Plan Generator',
+            },
+            body: JSON.stringify({
+              model, max_tokens: 8192, temperature: 0.7,
+              messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
+            }),
+          });
+          const d = await r.json();
+          if (d.choices?.[0]?.message?.content) {
+            completion = {
+              choices: [{ message: { content: d.choices[0].message.content }, finish_reason: 'stop' }],
+            };
+            console.log('OpenRouter success:', model);
+            break;
+          }
+          lastError = new Error(d.error?.message || `${model} returned no content`);
+        } catch (err: any) {
+          lastError = err;
+        }
+      }
     }
 
-    console.log('Content length:', content.length, 'characters');
-    console.log('--- Done ---');
+    if (!completion) {
+      const wait = lastError?.message?.match(/try again in (.+?)\./)?.[1];
+      throw new Error(
+        wait
+          ? `All models rate limited. Try again in ${wait}.`
+          : 'All models currently rate limited. Please try again in a few minutes.'
+      );
+    }
 
+    const rawContent = completion.choices[0].message.content ?? '';
+    if (!rawContent) return NextResponse.json({ error: 'AI returned empty content' }, { status: 500 });
+
+    // ── Post-processor: fix leaked English subheadings in Filipino output ──
+    let content = rawContent;
+    if (isFilipino) {
+      const fix: [RegExp, string][] = [
+        [/\*\*Strengths and Prior Knowledge\*\*/g,              `**${L.strengths}**`],
+        [/\*\*Interests and Engagement Hooks\*\*/g,             `**${L.interests}**`],
+        [/\*\*Possible Barriers to Learning\*\*/g,              `**${L.barriers}**`],
+        [/\*\*Accommodations and Support\*\*/g,                 `**${L.support}**`],
+        [/\*\*For All Learners\*\*/g,                           `**${L.forAll}**`],
+        [/\*\*For Learners Who Need Support\*\*/g,              `**${L.forSupport}**`],
+        [/\*\*For Learners Who Need Reinforcement[^*]*\*\*/g,   `**${L.forRemediation}**`],
+        [/\*\*For Advanced Learners[^*]*\*\*/g,                 `**${L.forAdvanced}**`],
+        [/\*\*Primary Materials\*\*/g,                          `**${L.primaryMat}**`],
+        [/\*\*Reference Materials\*\*/g,                        `**${L.refMat}**`],
+        [/\*\*Emergency Alternatives\*\*/g,                     `**${L.emergency}**`],
+        [/\*\*Other Learning Areas\*\*/g,                       `**${L.otherAreas}**`],
+        [/\*\*Special Topics \/ Career Awareness\*\*/g,         `**${L.specialTopics}**`],
+        [/\*\*Values Integration\*\*/g,                         `**${L.values}**`],
+        [/\*\*Technology[^*]*\*\*/g,                            `**${L.tech}**`],
+        [/\*\*Differentiated Instructions\*\*/g,                `**${L.diffLabel}**`],
+        [/\*\*Guiding Questions\*\*/g,                          `**${L.guiding}**`],
+        [/\*\*Objective Link\*\*/g,                             `**${L.objLink}**`],
+        [/\*\*Detailed teacher instructions\*\*/g,              `**${L.teacherScript}**`],
+        [/\*\*Teacher instructions[^*]*\*\*/g,                  `**${L.teacherScript}**`],
+        [/\*\*Student actions and expected responses\*\*/g,     `**${L.studentActions}**`],
+        [/\*\*Contextualized example[^*]*\*\*/g,                `**${L.examples}**`],
+        [/\*\*Synthesis and Reflection\*\*/g,                   `**${L.synthesis}**`],
+        [/\*\*Closing discussion\*\*/g,                         `**${L.closing}**`],
+        [/\*\*Exit ticket\*\*/gi,                               `**${L.exit}**`],
+        [/\*\*Real-life connection\*\*/g,                       `**${L.realLife}**`],
+        [/\*\*Materials\*\*:/g,                                 `**${L.materials}**:`],
+        [/\*\*Procedure\*\*:/g,                                 `**${L.procedure}**:`],
+        [/\*\*Purpose\*\*:/g,                                   `**${L.purpose}**:`],
+        [/\*\*Sample warm-up question\*\*/g,                    `**${L.warmup}**`],
+        [/\*\*Description\*\*:/g,                               `**${L.descLabel}**:`],
+        [/\*\*Administration\*\*:/g,                            `**${L.admin}**:`],
+        [/\*\*How results are used\*\*/g,                       `**${L.howUsed}**`],
+        [/\*\*Rubric or scoring guide\*\*/g,                    `**${L.rubric}**`],
+        [/\*\*Accommodation for diverse learners\*\*/g,         `**${L.accom}**`],
+        [/\*\*Sample tasks or questions\*\*/g,                  `**${L.sampleTasks}**`],
+        [/\*\*Cognitive\*\*:/g,                                 `**${L.cognitive}**:`],
+        [/\*\*Psychomotor\*\*:/g,                               `**${L.psychomotor}**:`],
+        [/\*\*Affective\*\*:/g,                                 `**${L.affective}**:`],
+      ];
+      for (const [p, r] of fix) content = content.replace(p, r);
+    }
+
+    console.log('Content length:', content.length);
     return NextResponse.json({ content });
 
   } catch (error: any) {
-    console.error('=== ROUTE ERROR ===');
-    console.error('Message:', error?.message);
-    console.error('Status:', error?.status);
-    console.error('Code:', error?.code);
-    console.error('===================');
-    return NextResponse.json(
-      { error: error?.message || 'Unknown server error' },
-      { status: 500 }
-    );
+    console.error('ROUTE ERROR:', error?.message);
+    return NextResponse.json({ error: error?.message || 'Unknown server error' }, { status: 500 });
   }
 }
