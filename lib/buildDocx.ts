@@ -134,15 +134,12 @@ function emptyP(): Paragraph {
   return new Paragraph({ spacing: { after: 60 }, children: [new TextRun({ text: '', size: 20 })] });
 }
 
-// Strips ALL ** markers and returns clean TextRuns with bold applied
 function parseBold(text: string): TextRun[] {
-  // First strip any stray leading/trailing ** that weren't closed properly
   const cleaned = text.replace(/^\*+|\*+$/g, '').trim();
   const runs: TextRun[] = [];
   const parts = cleaned.split(/\*\*(.*?)\*\*/g);
   parts.forEach((part, i) => {
     if (part === '') return;
-    // Strip any remaining stray asterisks
     const safeText = part.replace(/\*/g, '');
     if (!safeText) return;
     runs.push(new TextRun({
@@ -172,9 +169,7 @@ function bul(text: string): Paragraph {
 // ── Subheading detector ────────────────────────────────────────────
 
 function isSubheadingLine(trimmed: string): boolean {
-  // **Any text:** or **Any text** alone on a line
   if (/^\*\*[^*]+\*\*:?\s*$/.test(trimmed)) return true;
-  // English known subheadings
   if (/^(Cognitive|Psychomotor|Affective|Materials|Procedure|Purpose|Objective Link|Guiding Questions):?$/i.test(trimmed)) return true;
   if (/^(Detailed teacher instructions|Student actions and expected responses|Contextualized example problems):?$/i.test(trimmed)) return true;
   if (/^(Differentiated Instructions|Synthesis and Reflection|Closing discussion|Exit ticket|Real-life connection):?$/i.test(trimmed)) return true;
@@ -186,7 +181,7 @@ function isSubheadingLine(trimmed: string): boolean {
   if (/^(Special Topics \/ Career Awareness|Technology \(Future Integration\)|Technology):?$/i.test(trimmed)) return true;
   if (/^(Description|Administration|How results are used|Rubric or scoring guide|Accommodation for diverse learners):?$/i.test(trimmed)) return true;
   if (/^(Sample warm-up question|Sample tasks or questions):?$/i.test(trimmed)) return true;
-  // Filipino known subheadings
+  
   if (/^(Kognitibo|Sikolohikal|Psikomotor|Pandama|Pagpapahalaga):?$/i.test(trimmed)) return true;
   if (/^(Mga Kagamitan|Mga Hakbang|Layunin ng Aktibidad|Mga Gabay na Tanong|Kaugnay na Layunin):?$/i.test(trimmed)) return true;
   if (/^(Mga tagubilin para sa guro|Mga aksyon ng mag-aaral at inaasahang tugon|Mga halimbawang kontekstwalisado):?$/i.test(trimmed)) return true;
@@ -206,7 +201,7 @@ function isSubheadingLine(trimmed: string): boolean {
   return false;
 }
 
-// ── Convert AI text → Paragraphs (THE KEY FIX IS HERE) ─────────────
+// ── Convert AI text → Paragraphs ─────────────────────────────────
 
 function toParas(text: string): Paragraph[] {
   if (!text || !text.trim()) return [emptyP()];
@@ -218,7 +213,6 @@ function toParas(text: string): Paragraph[] {
     if (!line.trim()) { result.push(emptyP()); continue; }
     const trimmed = line.trim();
 
-    // Numbered step: render as bullet to prevent cross-section counter bleed
     if (/^\d+[\.\)]\s+/.test(trimmed)) {
       result.push(new Paragraph({
         numbering: { reference: 'bullets', level: 0 },
@@ -228,9 +222,7 @@ function toParas(text: string): Paragraph[] {
       continue;
     }
 
-    // Bullet line
     if (/^[-•*]\s+/.test(trimmed)) {
-      const clean = trimmed.replace(/^[-•*]\s+/, '').replace(/\*/g, '');
       result.push(new Paragraph({
         numbering: { reference: 'bullets', level: 0 },
         spacing: { after: 40 },
@@ -239,7 +231,6 @@ function toParas(text: string): Paragraph[] {
       continue;
     }
 
-    // Subheading
     if (isSubheadingLine(trimmed)) {
       const clean = trimmed.replace(/\*\*/g, '').replace(/\*/g, '').replace(/:$/, '').trim();
       result.push(new Paragraph({
@@ -249,7 +240,6 @@ function toParas(text: string): Paragraph[] {
       continue;
     }
 
-    // Default: parse inline bold but STRIP any stray asterisks
     const runs = parseBold(trimmed);
     if (runs.length > 0) {
       result.push(new Paragraph({ spacing: { after: 60 }, children: runs }));
@@ -322,23 +312,78 @@ function parseSection(content: string, tag: string): string {
     'REFERENCES', 'DECLARATION_AI', 'LEARNING_COMPETENCY',
     'LEARNING_OBJECTIVES', 'LEARNER_CONTEXT', 'PRE_LESSON',
     'FLOW', 'LEARNING_RESOURCES', 'OPPORTUNITIES_FOR_INTEGRATION',
-    'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING',
+    'FORMATIVE_ASSESSMENT', 'EXTENDED_LEARNING', 'REFLECTIONS',
   ];
-  const startTag = tag + ':';
-  const startIdx = content.indexOf(startTag);
-  if (startIdx === -1) return '';
-  const textStart = startIdx + startTag.length;
-  let endIdx = content.length;
-  for (const other of ALL_TAGS) {
-    if (other === tag) continue;
-    const pos = content.indexOf(other + ':', textStart);
-    if (pos !== -1 && pos < endIdx) endIdx = pos;
+
+  function normalize(s: string): string {
+    let clean = s
+      .replace(/[#*:]/g, '')
+      .trim()
+      .toUpperCase()
+      .replace(/[\s\-]+/g, '_');
+    
+    // Tugisin ang mga shorthand text styles mula sa LLM stream
+    if (clean === 'RESOURCES' || clean === 'LEARNING_RESOURCE') return 'LEARNING_RESOURCES';
+    if (clean === 'INTEGRATION' || clean === 'OPPORTUNITIES_FOR_INTEGRATION_TECHNOLOGY' || clean === 'OPPORTUNITY_FOR_INTEGRATION') return 'OPPORTUNITIES_FOR_INTEGRATION';
+    if (clean === 'WAYS_FORWARD' || clean === 'EXTENDED_LEARNING_OPPORTUNITIES') return 'EXTENDED_LEARNING';
+    return clean;
   }
-  const raw = content.slice(textStart, endIdx).trim();
-  // Strip leading/trailing markdown bold markers
-  const result = raw.replace(/^\*{1,2}\s*/, '').replace(/\s*\*{1,2}$/, '');
-  // Never return a blank cell — show a clear placeholder so teacher knows
-  return result || `(Hindi nakumpleto ng AI ang seksyong "${tag}". Subukang i-generate muli o dagdagan ang detalye sa form.)`;
+
+  const tagNorm = normalize(tag);
+  const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  
+  let startLine = -1;
+  
+  for (let i = 0; i < lines.length; i++) {
+    if (normalize(lines[i]) === tagNorm) {
+      startLine = i;
+      break;
+    }
+  }
+
+  if (startLine !== -1) {
+    const result: string[] = [];
+    for (let i = startLine + 1; i < lines.length; i++) {
+      const currentLineNorm = normalize(lines[i]);
+      const currentRawUpper = lines[i].trim().toUpperCase();
+      
+      // Strict matching guardrails laban sa tag-leakage
+      if (ALL_TAGS.map(t => normalize(t)).includes(currentLineNorm) && currentLineNorm !== tagNorm) {
+        break;
+      }
+      if (tagNorm === 'FORMATIVE_ASSESSMENT' && (currentRawUpper.includes('WAYS FORWARD') || currentRawUpper.includes('WAYS_FORWARD') || currentLineNorm === 'EXTENDED_LEARNING')) {
+        break;
+      }
+      if (/^##\s+(SESSION|SESYON)\s+\d+/i.test(lines[i].trim()) && tagNorm === 'PRE_LESSON') {
+        break;
+      }
+      result.push(lines[i]);
+    }
+    return result.join('\n').trim();
+  }
+
+  // Backup regex fallback pass
+  const inlineTagRe = new RegExp(`^[#* ]*${tagNorm.replace(/_/g, '[_ \\-]')}\\s*:\\s*(.*)$`, 'im');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(inlineTagRe);
+    if (!m) continue;
+    const inlineRemainder = (m[1] ?? '').trim();
+    const result: string[] = inlineRemainder ? [inlineRemainder] : [];
+    for (let j = i + 1; j < lines.length; j++) {
+      const nextLineNorm = normalize(lines[j]);
+      const nextRawUpper = lines[j].trim().toUpperCase();
+
+      if (ALL_TAGS.map(t => normalize(t)).includes(nextLineNorm)) break;
+      if (tagNorm === 'FORMATIVE_ASSESSMENT' && (nextRawUpper.includes('WAYS FORWARD') || nextRawUpper.includes('WAYS_FORWARD') || nextLineNorm === 'EXTENDED_LEARNING')) {
+        break;
+      }
+
+      result.push(lines[j]);
+    }
+    return result.join('\n').trim();
+  }
+
+  return '';
 }
 
 // ── Main export ────────────────────────────────────────────────────
@@ -353,6 +398,7 @@ export async function buildDocx(
 ) {
   const isFilipino = isFilipinoPH(learningArea);
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
+  
   const get = (key: string) => {
     const text = parseSection(aiContent, key);
     return text ? toParas(text) : [emptyP()];
@@ -476,7 +522,7 @@ export async function buildDocx(
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.waysForwardBanner, L.waysForwardDesc),
-            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
+            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')), // <--- NAITAMA NA SA EXTENDED_LEARNING MULA WAYS_FORWARD
             row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
           ],
         }),

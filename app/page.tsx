@@ -18,12 +18,12 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
 
   const LOADING_MESSAGES = [
-  '🤖 Groq AI is crafting your lesson plan...',
-  '📝 Writing learning competencies and objectives...',
-  '🎯 Designing session flow and activities...',
-  '🏙️ Adding Residence City context to examples...',
-  '📊 Building formative assessments...',
-  '🌱 Almost done — finalizing your DOCX...',
+    '🤖 Groq AI is crafting your lesson plan...',
+    '📝 Writing learning competencies and objectives...',
+    '🎯 Designing session flow and activities...',
+    '🏙️ Adding Residence City context to examples...',
+    '📊 Building formative assessments...',
+    '🌱 Almost done — finalizing your DOCX...',
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
@@ -35,8 +35,7 @@ export default function Home() {
       msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length;
       setLoadingMessage(LOADING_MESSAGES[msgIdx]);
     }, 7000);
-    // Add in the finally block or after setLoading(false):
-    clearInterval(msgTimer);
+
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -46,13 +45,29 @@ export default function Home() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       if (!data.content) throw new Error('No content returned');
+
+      // Debugging logs matching route.ts output properties
+      console.log('RAW CONTENT PREVIEW:', data.content.substring(0, 2000));
+      
       const { buildDocx } = await import('../lib/buildDocx');
-      await buildDocx(data.content, form.teacherName, form.lessonName, form.learningArea, form.gradeSection, form.sessions);
+      
+      // Execute file generation matching your structural parameters
+      await buildDocx(
+        data.content,
+        form.teacherName,
+        form.lessonName,
+        form.learningArea,
+        form.gradeSection,
+        form.sessions
+      );
+
       setStatus('success');
     } catch (e) {
       setStatus('error:' + (e as Error).message);
+    } finally {
+      clearInterval(msgTimer);
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyGcash = () => {
@@ -68,10 +83,10 @@ export default function Home() {
     { key: 'learningArea', label: 'Learning Area', placeholder: 'e.g. Mathematics 10', icon: '🎓', area: false },
     { key: 'teacherName', label: 'Teacher\'s Name', placeholder: 'Your full name', icon: '👩‍🏫', area: false },
     { key: 'gradeSection', label: 'Grade Level & Section', placeholder: 'e.g. Grade 10 — Rizal', icon: '🏫', area: false },
-    { key:'schoolCity', label: 'School City / Municipality', placeholder: 'e.g. Davao City, Cebu City, Manila, Quezon City...', icon: '📍', area: false },
-    { key: 'competency', label: 'Learning Competency (MELC)', placeholder: 'Paste the full MELC text and code here...', icon: '🎯', area: true },
+    { key: 'schoolCity', label: 'School City / Municipality', placeholder: 'e.g. Davao City, Cebu City, Manila, Quezon City...', icon: '📍', area: false },
     { key: 'sessions', label: 'No. of Sessions & Duration', placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min', icon: '⏱️', area: false },
-    { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, Residence City context...', icon: '🏡', area: true },
+    { key: 'competency', label: 'Learning Competency (MELC)', placeholder: 'Paste the full MELC text and code here...', icon: '🎯', area: true },
+    { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, contextualized triggers...', icon: '🏡', area: true },
   ];
 
   return (
@@ -94,7 +109,6 @@ export default function Home() {
           overflow-x: hidden;
         }
 
-        /* Decorative blobs */
         .blob {
           position: fixed;
           border-radius: 50%;
@@ -115,7 +129,6 @@ export default function Home() {
           padding: 0 20px 60px;
         }
 
-        /* ── HEADER ── */
         .header {
           text-align: center;
           padding: 52px 20px 36px;
@@ -200,7 +213,6 @@ export default function Home() {
           box-shadow: 0 6px 18px rgba(244,114,182,0.5);
         }
 
-        /* ── CARD ── */
         .card {
           background: rgba(255,255,255,0.75);
           backdrop-filter: blur(20px);
@@ -227,7 +239,6 @@ export default function Home() {
           background: linear-gradient(to right, #e9d5ff, transparent);
         }
 
-        /* ── FIELDS ── */
         .fields-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -273,7 +284,6 @@ export default function Home() {
 
         .field-textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 
-        /* ── GENERATE BUTTON ── */
         .gen-wrap { margin-top: 28px; }
 
         .gen-btn {
@@ -315,7 +325,6 @@ export default function Home() {
           cursor: not-allowed;
         }
 
-        /* Loading dots animation */
         .dots span {
           display: inline-block;
           animation: bounce 1.2s infinite;
@@ -329,7 +338,6 @@ export default function Home() {
           40% { transform: translateY(-6px); }
         }
 
-        /* ── STATUS ── */
         .status-box {
           margin-top: 16px;
           padding: 14px 18px;
@@ -348,7 +356,6 @@ export default function Home() {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Shimmer effect on loading button */
         .gen-btn.loading::after {
           content: '';
           position: absolute;
@@ -359,7 +366,6 @@ export default function Home() {
         }
         @keyframes shimmer { to { left: 100%; } }
 
-        /* ── DONATION MODAL ── */
         .modal-overlay {
           position: fixed; inset: 0;
           background: rgba(30,18,64,0.5);
@@ -425,7 +431,6 @@ export default function Home() {
 
         .modal-note { font-size: 12px; color: #b8a9cc; margin-top: 12px; }
 
-        /* ── FOOTER ── */
         .footer {
           text-align: center;
           margin-top: 36px;
@@ -436,14 +441,12 @@ export default function Home() {
 
         .footer strong { color: #8b7fa8; }
 
-        /* ── DIVIDER ── */
         .divider {
           height: 1px;
           background: linear-gradient(to right, transparent, #e9d5ff, transparent);
           margin: 28px 0;
         }
 
-        /* ── RESPONSIVE ── */
         @media (max-width: 600px) {
           .card { padding: 24px 20px; }
           .fields-grid { grid-template-columns: 1fr; }
@@ -484,7 +487,7 @@ export default function Home() {
 
             <div className="fields-grid">
               {fields.map(f => (
-                <div key={f.key} className={`field-group${f.area || f.key === 'competency' || f.key === 'classroomDetails' ? ' field-full' : ''}`}>
+                <div key={f.key} className={`field-group${f.area ? ' field-full' : ''}`}>
                   <label className="field-label">
                     <span className="icon">{f.icon}</span>
                     {f.label}
@@ -550,7 +553,7 @@ export default function Home() {
 
           {/* ── FOOTER ── */}
           <footer className="footer">
-            <p>Made with 💜 for DepEd teachers in <strong>Philippines</strong></p>
+            <p>Made with 💜 for DepEd teachers in the <strong>Philippines</strong></p>
             <p style={{ marginTop: 4 }}>
               ILAW Framework · SY 2026–2027 · Created by <strong>Hazsher Briz Munjilul</strong>
             </p>
@@ -578,7 +581,7 @@ export default function Home() {
               {copied ? '✅ Number Copied!' : '📋 Copy GCash Number'}
             </button>
             <p className="modal-note">
-              Every contribution, no matter how small, helps keep this tool free and running. Salamat! 🙏
+              Every contribution helps keep this tool free and running. Salamat! 🙏
             </p>
           </div>
         </div>
