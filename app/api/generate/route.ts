@@ -363,90 +363,102 @@ EXTENDED_LEARNING
         }
       }
 
-      // OpenRouter fallback
+      // ── Helper: call any OpenAI-compatible REST endpoint ───────────────────
+      // Logs the failure reason clearly and returns null on any error so the
+      // next provider is always attempted rather than silently skipping.
+      async function tryProvider(
+        label: string,
+        url: string,
+        authHeader: string,
+        model: string,
+        extraHeaders: Record<string, string> = {},
+      ): Promise<string | null> {
+        try {
+          console.log(`[${callLabel}] Trying ${label} (${model})...`);
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+              ...extraHeaders,
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 4096,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: 0.7,
+            }),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text().catch(() => '');
+            console.warn(`[${callLabel}] ${label} returned ${response.status}: ${errText.slice(0, 200)}`);
+            return null;
+          }
+
+          const data = await response.json();
+          const text: string = data.choices?.[0]?.message?.content ?? '';
+          if (!text) {
+            console.warn(`[${callLabel}] ${label} returned empty content`);
+            return null;
+          }
+          console.log(`[${callLabel}] ${label} success! Chars: ${text.length}`);
+          return text;
+        } catch (err: any) {
+          console.error(`[${callLabel}] ${label} exception: ${err?.message}`);
+          return null;
+        }
+      }
+
+      // OpenRouter — try multiple models in order so if one is rate-limited
+      // the next one is attempted automatically.
       if (!result && hasOpenRouter) {
-        try {
-          console.log(`[${callLabel}] Trying OpenRouter fallback...`);
-          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-pro',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-              ],
-              temperature: 0.7,
-            }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            result = data.choices[0]?.message?.content ?? '';
-            console.log(`[${callLabel}] OpenRouter fallback success! Chars: ${result?.length}`);
-          }
-        } catch (err: any) {
-          console.error(`[${callLabel}] OpenRouter fallback failed:`, err?.message);
+        const orModels = [
+          'google/gemini-2.5-flash',
+          'google/gemini-2.5-pro',
+          'meta-llama/llama-3.3-70b-instruct',
+          'mistralai/mistral-large',
+        ];
+        for (const model of orModels) {
+          const text = await tryProvider(
+            `OpenRouter/${model}`,
+            'https://openrouter.ai/api/v1/chat/completions',
+            `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            model,
+            { 'HTTP-Referer': 'https://ilaw.vercel.app', 'X-Title': 'ILAW Lesson Plan Generator' },
+          );
+          if (text) { result = text; break; }
         }
       }
 
-      // Mistral fallback
+      // Mistral — try both large and smaller model as fallback
       if (!result && hasMistral) {
-        try {
-          console.log(`[${callLabel}] Trying Mistral fallback...`);
-          const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'mistral-large-latest',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-              ],
-              temperature: 0.7,
-            }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            result = data.choices[0]?.message?.content ?? '';
-            console.log(`[${callLabel}] Mistral fallback success! Chars: ${result?.length}`);
-          }
-        } catch (err: any) {
-          console.error(`[${callLabel}] Mistral fallback failed:`, err?.message);
+        const mistralModels = ['mistral-large-latest', 'mistral-small-latest'];
+        for (const model of mistralModels) {
+          const text = await tryProvider(
+            `Mistral/${model}`,
+            'https://api.mistral.ai/v1/chat/completions',
+            `Bearer ${process.env.MISTRAL_API_KEY}`,
+            model,
+          );
+          if (text) { result = text; break; }
         }
       }
 
-      // Cerebras fallback
+      // Cerebras — try both available models
       if (!result && hasCerebras) {
-        try {
-          console.log(`[${callLabel}] Trying Cerebras fallback...`);
-          const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.CEREBRAS_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'llama3.3-70b',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-              ],
-              temperature: 0.7,
-            }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            result = data.choices[0]?.message?.content ?? '';
-            console.log(`[${callLabel}] Cerebras fallback success! Chars: ${result?.length}`);
-          }
-        } catch (err: any) {
-          console.error(`[${callLabel}] Cerebras fallback failed:`, err?.message);
+        const cerebrasModels = ['llama-3.3-70b', 'llama3.3-70b'];
+        for (const model of cerebrasModels) {
+          const text = await tryProvider(
+            `Cerebras/${model}`,
+            'https://api.cerebras.ai/v1/chat/completions',
+            `Bearer ${process.env.CEREBRAS_API_KEY}`,
+            model,
+          );
+          if (text) { result = text; break; }
         }
       }
 
