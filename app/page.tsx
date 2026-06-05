@@ -42,9 +42,26 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+
+      // Guard: if Vercel times out or crashes it returns an HTML error page,
+      // not JSON — parse it safely and show a helpful message instead of
+      // "Unexpected token 'A'" or similar cryptic JSON parse errors.
+      const rawText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        // Not JSON — likely a Vercel timeout (504) or cold-start HTML error page
+        if (res.status === 504 || res.status === 408) {
+          throw new Error('The request timed out. All AI providers are currently rate-limited. Please try again in a few minutes.');
+        }
+        if (!res.ok) {
+          throw new Error(`Server error (${res.status}). Please try again in a few minutes.`);
+        }
+        throw new Error('Unexpected response from server. Please try again.');
+      }
       if (data.error) throw new Error(data.error);
-      if (!data.content) throw new Error('No content returned');
+      if (!data.content) throw new Error('No content returned from AI. Please try again.');
 
       console.log('RAW CONTENT PREVIEW:', data.content.substring(0, 2000));
 

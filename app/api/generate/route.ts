@@ -468,7 +468,7 @@ EXTENDED_LEARNING
     async function callAIWithRetry(
       userPrompt: string,
       callLabel: string,
-      retryDelayMs = 35000,   // 35 seconds — covers most short Groq rate-limit windows
+      retryDelayMs = 20000,   // 20 seconds — keeps total under Vercel's 60s free-plan limit
       maxRetries = 2,
     ): Promise<string> {
       let lastError: Error | null = null;
