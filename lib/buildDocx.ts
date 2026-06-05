@@ -716,7 +716,7 @@ export async function buildDocxBuffer(
   learningArea = '',
   gradeSection = '',
   noOfSessions = '',
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   const isFilipino = isFilipinoPH(learningArea);
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
 
@@ -854,5 +854,5 @@ export async function buildDocxBuffer(
     }],
   });
 
-  return Buffer.from(await Packer.toBuffer(doc));
+  return new Uint8Array(await Packer.toBuffer(doc));
 }

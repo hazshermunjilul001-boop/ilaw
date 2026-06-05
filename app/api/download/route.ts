@@ -23,7 +23,9 @@ export async function POST(req: Request) {
       ? lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
       : 'ILAW_Lesson_Plan';
 
-    return new Response(buffer, {
+    // Convert Buffer to Uint8Array — Vercel's strict TypeScript rejects Buffer
+    // as a Response BodyInit directly, but Uint8Array is always accepted.
+    return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
