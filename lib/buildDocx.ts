@@ -25,103 +25,188 @@ interface TemplateLabels {
   docTitle: string; lessonName: string; learningArea: string; designedBy: string;
   gradeSection: string; noOfSessions: string; references: string; referencesDesc: string;
   aiDeclaration: string; aiDeclarationDesc: string; aiDeclarationLink: string;
-  intentionsBanner: string; intentionsDesc: string; learningExpBanner: string;
-  learningExpDesc: string; assessmentBanner: string; assessmentDesc: string;
-  waysForwardBanner: string; waysForwardDesc: string; competencyLabel: string;
-  competencyDesc: string; objectivesLabel: string; objectivesDesc: string;
-  learnerContextLabel: string; learnerContextDesc: string; preLessonLabel: string;
-  preLessonDesc: string; flowLabel: string; flowDesc: string; resourcesLabel: string;
-  resourcesDesc: string; integrationLabel: string; integrationDesc: string;
-  formativeLabel: string; formativeDesc: string; extendedLabel: string; extendedDesc: string;
+
+  // ── ILAW Banner labels (must match DO 016 s.2026 ILAW acronym exactly) ──
+  intentionsBanner: string; intentionsDesc: string;
+  learningExpBanner: string; learningExpDesc: string;
+  // FIX #7: "Assessing Learning" (not just "Assessment") — matches the "A" in ILAW
+  assessingLearningBanner: string; assessingLearningDesc: string;
+  waysForwardBanner: string; waysForwardDesc: string;
+
+  // ── Intentions sub-labels ──
+  competencyLabel: string; competencyDesc: string;
+  // FIX #2: objectivesDesc updated — no longer references Cognitive/Psychomotor/Affective
+  objectivesLabel: string; objectivesDesc: string;
+  learnerContextLabel: string; learnerContextDesc: string;
+
+  // ── Learning Experience sub-labels ──
+  preLessonLabel: string; preLessonDesc: string;
+  flowLabel: string; flowDesc: string;
+  resourcesLabel: string; resourcesDesc: string;
+  // FIX #5: "integration and contextualization" (not just "integration")
+  integrationLabel: string; integrationDesc: string;
+
+  // ── Assessing Learning sub-labels ──
+  formativeLabel: string; formativeDesc: string;
+
+  // ── Ways Forward sub-labels ──
+  extendedLabel: string; extendedDesc: string;
   reflectionsLabel: string; reflectionsDesc: string;
   afterSession: string; notesToShare: string; coachHelp: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ENGLISH LABELS
+// ─────────────────────────────────────────────────────────────────────────────
 const ENGLISH_LABELS: TemplateLabels = {
-  docTitle: 'Lesson Plan Template',
-  lessonName: 'Name of Lesson', learningArea: 'Learning Area/s',
-  designedBy: 'Designed by Teacher/s',
-  gradeSection: 'Designed for which Grade Level and Section',
-  noOfSessions: 'No. of Sessions', references: 'References',
+  docTitle: 'Lesson Plan',
+
+  lessonName: 'Lesson Title',
+  learningArea: 'Learning Area/s',
+  designedBy: 'Name of Teacher/s',
+  gradeSection: 'Grade Level and Section',
+  noOfSessions: 'No. of Sessions',
+  references: 'References',
   referencesDesc: '(books, websites, toolkits, etc.)',
   aiDeclaration: 'Declaration of AI use',
   aiDeclarationDesc: 'Cite how AI was used in the formulation of the lesson plan.',
-  aiDeclarationLink: 'See DO 3 s.2026 Annex A.',
-  intentionsBanner: 'Intentions.',
-  intentionsDesc: 'Meaningful learning experiences are anchored in how we frame them. Start by deciding what you want learners to master by the end of the lesson – keep it clear and simple. Remember: Understanding your learners\' evolving context and designing around it help ensure that your lessons connect with and are relevant to them.',
-  learningExpBanner: 'Learning Experience.',
-  learningExpDesc: 'A learning experience is like a thoughtfully designed journey. Each activity and interaction builds towards meaningful understanding and growth. Identify activities and interactions to help learners gain knowledge, skills, or understanding in a purposeful way.',
-  assessmentBanner: 'Assessment.',
-  assessmentDesc: 'Assessments reveal what learners have gained and what they still need help with. These are helpful in providing you with information to guide your future instruction.',
-  waysForwardBanner: 'Ways Forward.',
+  aiDeclarationLink: 'See DO 003 s.2026 Annex A.',
+
+  // ── ILAW Banners ──────────────────────────────────────────────────────────
+  intentionsBanner: 'Intentions',
+  intentionsDesc: 'Meaningful learning experiences are anchored in how we frame them. Start by deciding what you want learners to master by the end of the lesson – keep it clear and simple. Remember: Understanding your learners\' evolving context and designing around it ensures that your lessons connect with and are relevant to them.',
+
+  learningExpBanner: 'Learning Experience',
+  learningExpDesc: 'A learning experience is like a thoughtfully designed journey. Each activity and interaction builds towards meaningful understanding and growth. Identify activities and interactions to help learners gain knowledge, skills, or understanding in a purposeful and coherent way.',
+
+  // FIX #7: Banner is now "Assessing Learning" to match the "A" in ILAW
+  assessingLearningBanner: 'Assessing Learning',
+  assessingLearningDesc: 'Assessments reveal what learners have gained and what they still need help with. These are helpful in providing you with information to guide your future instruction throughout the entire session.',
+
+  waysForwardBanner: 'Ways Forward',
   waysForwardDesc: 'Meaningful learning can also happen beyond the classroom – for both the learners and the teacher. Pause and reflect on what happened today.',
-  competencyLabel: 'Learning Competency:',
+
+  // ── Intentions sub-labels ─────────────────────────────────────────────────
+  competencyLabel: 'Learning Competency and Curriculum Standards:',
   competencyDesc: 'Write the competency/ies from the curriculum that we are targeting, and the content or performance standards applicable to the sessions.',
+
+  // FIX #2: Objectives description no longer references the old DLP
+  // Cognitive/Psychomotor/Affective three-domain format (repealed by DO 016 s.2026).
+  // Now aligned with Section 7(a)(ii): clear, focused, manageable learning objectives.
   objectivesLabel: 'Learning Objectives:',
   objectivesDesc: 'Write the smaller knowledge, skills, or tasks from the competency that the learners will work on and be able to show by the end of the sessions.',
+
   learnerContextLabel: 'Learner Context:',
   learnerContextDesc: 'Write your observations of your learners, and how they have been performing or responding to learning experiences recently. Include strengths, interests, and possible barriers to learning.',
+
+  // ── Learning Experience sub-labels ───────────────────────────────────────
   preLessonLabel: 'Pre-Lesson:',
   preLessonDesc: 'Describe how you will help the learners get ready for the lesson.',
+
   flowLabel: 'Flow:',
-  flowDesc: 'Describe the activities that you can implement in 1 or more sessions to meet the learning objectives.\n\nApply the Learning Design Principles by thinking about how to:\n• make the objectives clear for the learners\n• guide learners before letting them try the task on their own\n• check the state of the learners\' well-being, understanding, and mastery over the lesson\n• connect today\'s new concepts to past competencies\n• encourage collaboration among learners\n• invite learners to reflect on why this matters to them\n• ensure inclusion for learners\' varied abilities, learning styles, and contexts',
+  // FIX #3: Flow description now references Learning Design Principles (DO 016 Table 1)
+  // instead of implying a rigid 3-part structure. Instruction is responsive, not fixed.
+  flowDesc: 'Describe the activities that you can implement in 1 or more sessions to meet your intentions.\n\nApply the Learning Design Principles, use the prompts below as a guide. Note, not all principles are expected in every lesson:\n• make the objectives clear for the learners\n• guide learners before letting them try the task on their own\n• check the state of the learners\' well-being, understanding, and mastery over the lesson\n• connect today\'s new concepts to past competencies\n• encourage collaboration among learners\n• invite learners to reflect on why this matters to them\n• ensure inclusion for learners\' varied abilities, learning styles, and contexts',
+
   resourcesLabel: 'Learning Resources:',
   resourcesDesc: 'List down the learning resources that will help you reach your objectives. Ensure that they are available and inclusive.\n\nInclude options and alternatives in case of emergencies.',
-  integrationLabel: 'Opportunities for integration:',
-  integrationDesc: 'Write down any possibilities to meaningfully integrate another learning area, special topic, or technology. Write N/A if none.',
+
+  // FIX #5: Label now reads "integration and contextualization" per DO 016 Section 7(b)(iv)
+  integrationLabel: 'Opportunities for integration and contextualization:',
+  integrationDesc: 'Write down any possibilities to meaningfully connect lessons within and across learning areas, integrate contextualized and human-centered uses of technology, and incorporate relevant real-life, cultural, or community-based contexts. Write N/A if none.',
+
+  // ── Assessing Learning sub-labels ─────────────────────────────────────────
   formativeLabel: 'Formative Assessment:',
-  formativeDesc: 'Create a task, activity or questions to evaluate learning and provide feedback. Include ways for learners to ask for guidance or support.\n\nRemember to provide appropriate accommodations so all learners can demonstrate their understanding (e.g., varied response formats, small group options, visual or auditory supports)',
+  formativeDesc: 'Create a task, activity or questions to assess learning and provide feedback every now and then. Include ways for learners to ask for guidance or support throughout each session.\n\nRemember to provide appropriate accommodations so all learners can demonstrate their understanding (e.g., varied response formats, small group options, visual or auditory supports)',
+
+  // ── Ways Forward sub-labels ───────────────────────────────────────────────
   extendedLabel: 'Extended learning opportunities:',
   extendedDesc: 'Suggest other learning experiences outside the classroom/class hours that learners may want to access to reinforce what they have learned, to spark their curiosities further, or that may provide them support in their areas of difficulty.',
+
   reflectionsLabel: 'Reflections:',
-  reflectionsDesc: 'Think about what you need to change for the next session based on what happened today. Is there something the learners are interested in exploring?\n\nAre there some things you would like to share with your co-teachers, parents, or school leaders about your classroom experience? What would you like your instructional coach to help you with?',
-  afterSession: 'After Session', notesToShare: 'Notes to share with co-teachers, parents, or school leaders:',
+  reflectionsDesc: 'Think about what you need to change for the next session based on what happened today. Is there something the learners are interested in exploring?\n\nAre there some things you would like to share with your co-teachers, parents, or school leaders about your classroom experience? What would you like your instructional coach to help you with?\n\nReflections may be written in brief notes, bullets, or annotations.',
+
+  afterSession: 'After Session',
+  notesToShare: 'Notes to share with co-teachers, parents, or school leaders:',
   coachHelp: 'I would like my instructional coach to help me with:',
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FILIPINO LABELS
+// ─────────────────────────────────────────────────────────────────────────────
 const FILIPINO_LABELS: TemplateLabels = {
-  docTitle: 'Template ng Plano sa Aralin',
-  lessonName: 'Pangalan ng Aralin', learningArea: 'Larangang Pampagkatuto',
-  designedBy: 'Dinisenyo ng Guro/s', gradeSection: 'Dinisenyo para sa Antas at Seksyon',
-  noOfSessions: 'Bilang ng Sesyon', references: 'Mga Sanggunian',
+  docTitle: 'Plano sa Aralin',
+
+  lessonName: 'Pamagat ng Aralin',
+  learningArea: 'Larangang Pampagkatuto',
+  designedBy: 'Pangalan ng Guro/s',
+  gradeSection: 'Antas at Seksyon',
+  noOfSessions: 'Bilang ng Sesyon',
+  references: 'Mga Sanggunian',
   referencesDesc: '(mga libro, website, toolkit, atbp.)',
   aiDeclaration: 'Deklarasyon ng Paggamit ng AI',
   aiDeclarationDesc: 'Ipaliwanag kung paano ginamit ang AI sa pagbuo ng plano sa aralin.',
-  aiDeclarationLink: 'Tingnan ang DO 3 s.2026 Annex A.',
-  intentionsBanner: 'Mga Layunin.',
-  intentionsDesc: 'Ang makabuluhang karanasan sa pagkatuto ay nakasalalay sa kung paano natin ito binabalangkas. Magsimula sa pamamagitan ng pagpapasya kung ano ang nais mong matutunan ng mga mag-aaral bago matapos ang aralin – panatilihin itong malinaw at simple.',
-  learningExpBanner: 'Karanasan sa Pagkatuto.',
-  learningExpDesc: 'Ang karanasan sa pagkatuto ay parang isang maingat na dinisenyo na paglalakbay. Ang bawat aktibidad at interaksyon ay nagtatayo tungo sa makabuluhang pag-unawa at paglago.',
-  assessmentBanner: 'Pagtatasa.',
-  assessmentDesc: 'Inihahayag ng mga pagtatasa kung ano ang natamo ng mga mag-aaral at kung ano pa ang kailangan nilang tulong.',
-  waysForwardBanner: 'Mga Susunod na Hakbang.',
-  waysForwardDesc: 'Ang makabuluhang pagkatuto ay maaari ring mangyari sa labas ng silid-aralan. Huminto at pagnilayan kung ano ang nangyari ngayon.',
-  competencyLabel: 'Kakayahang Pampagkatuto:',
+  aiDeclarationLink: 'Tingnan ang DO 003 s.2026 Annex A.',
+
+  // ── ILAW Banners ──────────────────────────────────────────────────────────
+  intentionsBanner: 'Mga Layunin',
+  intentionsDesc: 'Ang makabuluhang karanasan sa pagkatuto ay nakasalalay sa kung paano natin ito binabalangkas. Magsimula sa pamamagitan ng pagpapasya kung ano ang nais mong matutunan ng mga mag-aaral bago matapos ang aralin – panatilihin itong malinaw at simple. Tandaan: Ang pag-unawa sa nagbabagong konteksto ng iyong mga mag-aaral at ang pagdidisenyo sa paligid nito ay nagtitiyak na ang iyong mga aralin ay may koneksyon at may kaugnayan sa kanila.',
+
+  learningExpBanner: 'Karanasan sa Pagkatuto',
+  learningExpDesc: 'Ang karanasan sa pagkatuto ay parang isang maingat na dinisenyo na paglalakbay. Ang bawat aktibidad at interaksyon ay nagtatayo tungo sa makabuluhang pag-unawa at paglago. Tukuyin ang mga aktibidad at interaksyon upang matulungan ang mga mag-aaral na makakuha ng kaalaman, kasanayan, o pag-unawa sa isang may layunin at magkakaugnay na paraan.',
+
+  // FIX #7: "Pagtatatasa ng Pagkatuto" to match "Assessing Learning" concept
+  assessingLearningBanner: 'Pagtatatasa ng Pagkatuto',
+  assessingLearningDesc: 'Inihahayag ng mga pagtatasa kung ano ang natamo ng mga mag-aaral at kung ano pa ang kailangan nilang tulong. Kapaki-pakinabang ang mga ito sa pagbibigay sa iyo ng impormasyon upang gabayan ang iyong susunod na pagtuturo sa buong sesyon.',
+
+  waysForwardBanner: 'Mga Susunod na Hakbang',
+  waysForwardDesc: 'Ang makabuluhang pagkatuto ay maaari ring mangyari sa labas ng silid-aralan – para sa parehong mga mag-aaral at guro. Huminto at pagnilayan kung ano ang nangyari ngayon.',
+
+  // ── Intentions sub-labels ─────────────────────────────────────────────────
+  competencyLabel: 'Kakayahang Pampagkatuto at Pamantayan ng Kurikulum:',
   competencyDesc: 'Isulat ang kakayahan/mga kakayahan mula sa kurikulum na aming tinutukoy, at ang mga pamantayan ng nilalaman o pagganap na naaangkop sa mga sesyon.',
+
+  // FIX #2: No Cognitive/Psychomotor/Affective — plain, focused objectives per DO 016
   objectivesLabel: 'Mga Layunin sa Pagkatuto:',
   objectivesDesc: 'Isulat ang mas maliliit na kaalaman, kasanayan, o gawain mula sa kakayahan na pag-aaralan ng mga mag-aaral at maipakikita sa pagtatapos ng mga sesyon.',
+
   learnerContextLabel: 'Konteksto ng Mag-aaral:',
-  learnerContextDesc: 'Isulat ang iyong mga obserbasyon tungkol sa iyong mga mag-aaral at kung paano sila tumutugon sa mga karanasan sa pagkatuto. Isama ang mga kalakasan, interes, at posibleng hadlang.',
+  learnerContextDesc: 'Isulat ang iyong mga obserbasyon tungkol sa iyong mga mag-aaral at kung paano sila tumutugon sa mga karanasan sa pagkatuto kamakailan. Isama ang mga kalakasan, interes, at posibleng hadlang sa pagkatuto.',
+
+  // ── Learning Experience sub-labels ───────────────────────────────────────
   preLessonLabel: 'Bago ang Aralin:',
   preLessonDesc: 'Ilarawan kung paano mo tutulungan ang mga mag-aaral na maghanda para sa aralin.',
+
   flowLabel: 'Daloy:',
-  flowDesc: 'Ilarawan ang mga aktibidad na maaari mong ipatupad sa 1 o higit pang sesyon upang matugunan ang mga layunin sa pagkatuto.\n\nIlapat ang mga Prinsipyo sa Disenyo ng Pagkatuto:\n• gawing malinaw ang mga layunin para sa mga mag-aaral\n• gabayan ang mga mag-aaral bago hayaan silang subukan ang gawain nang mag-isa\n• suriin ang kalagayan ng kagalingan, pag-unawa, at kahusayan ng mga mag-aaral\n• ikonekta ang mga bagong konsepto sa mga nakaraang kakayahan\n• hikayatin ang pakikipagtulungan sa pagitan ng mga mag-aaral\n• anyayahan ang mga mag-aaral na pagnilayan kung bakit ito mahalaga\n• tiyaking kasama ang lahat para sa iba-ibang kakayahan at estilo ng pagkatuto',
+  // FIX #3: Principles-based description, not rigid structure
+  flowDesc: 'Ilarawan ang mga aktibidad na maaari mong ipatupad sa 1 o higit pang sesyon upang matugunan ang iyong mga layunin.\n\nIlapat ang mga Prinsipyo sa Disenyo ng Pagkatuto, gamitin ang mga prompt sa ibaba bilang gabay. Tandaan, hindi lahat ng prinsipyo ay inaasahan sa bawat aralin:\n• gawing malinaw ang mga layunin para sa mga mag-aaral\n• gabayan ang mga mag-aaral bago hayaan silang subukan ang gawain nang mag-isa\n• suriin ang kalagayan ng kagalingan, pag-unawa, at kahusayan ng mga mag-aaral sa buong aralin\n• ikonekta ang mga bagong konsepto sa mga nakaraang kakayahan\n• hikayatin ang pakikipagtulungan sa pagitan ng mga mag-aaral\n• anyayahan ang mga mag-aaral na pagnilayan kung bakit ito mahalaga sa kanila\n• tiyaking kasama ang lahat para sa iba-ibang kakayahan, estilo ng pagkatuto, at konteksto',
+
   resourcesLabel: 'Mga Kagamitan sa Pagkatuto:',
-  resourcesDesc: 'Ilista ang mga kagamitan na tutulong sa iyo na maabot ang iyong mga layunin. Tiyakin na available at inklusibo. Isama ang mga alternatibo para sa emergency.',
-  integrationLabel: 'Mga Pagkakataon para sa Integrasyon:',
-  integrationDesc: 'Isulat ang anumang posibilidad na ikonekta sa ibang larangan ng pagkatuto, espesyal na paksa, o teknolohiya. N/A kung wala.',
+  resourcesDesc: 'Ilista ang mga kagamitan na tutulong sa iyo na maabot ang iyong mga layunin. Tiyakin na available at inklusibo ang mga ito.\n\nIsama ang mga alternatibo para sa mga emergency.',
+
+  // FIX #5: "integrasyon at kontekstwalisasyon" per DO 016 Section 7(b)(iv)
+  integrationLabel: 'Mga Pagkakataon para sa Integrasyon at Kontekstwalisasyon:',
+  integrationDesc: 'Isulat ang anumang posibilidad na makabuluhang maikonekta ang mga aralin sa iba pang larangang pampagkatuto, maisama ang kontekstwalisadong paggamit ng teknolohiya, at maisama ang mga kaugnay na tunay na buhay, kultural, o kontekstong pangkomunidad. N/A kung wala.',
+
+  // ── Assessing Learning sub-labels ─────────────────────────────────────────
   formativeLabel: 'Formative na Pagtatasa:',
-  formativeDesc: 'Lumikha ng gawain o katanungan upang suriin ang pagkatuto at magbigay ng feedback. Isama ang mga paraan para sa mga mag-aaral na humingi ng gabay.\n\nMagbigay ng angkop na akomodasyon upang maipakita ng lahat ang kanilang pag-unawa.',
+  formativeDesc: 'Lumikha ng gawain, aktibidad, o mga katanungan upang suriin ang pagkatuto at magbigay ng feedback sa bawat pagkakataon. Isama ang mga paraan para sa mga mag-aaral na humingi ng gabay o suporta sa buong sesyon.\n\nMagbigay ng angkop na akomodasyon upang maipakita ng lahat ang kanilang pag-unawa (hal., iba-ibang format ng tugon, opsyon sa maliit na grupo, visual o auditory na suporta)',
+
+  // ── Ways Forward sub-labels ───────────────────────────────────────────────
   extendedLabel: 'Mga Karagdagang Pagkakataon sa Pagkatuto:',
-  extendedDesc: 'Magmungkahi ng iba pang karanasan sa pagkatuto sa labas ng silid-aralan upang palakasin ang natutunan, palawakin ang pagkamausisa, o magbigay ng suporta.',
+  extendedDesc: 'Magmungkahi ng iba pang karanasan sa pagkatuto sa labas ng silid-aralan o oras ng klase na maaaring i-access ng mga mag-aaral upang palakasin ang natutunan, palawakin ang kanilang pagkamausisa, o magbigay ng suporta sa kanilang mga lugar ng kahirapan.',
+
   reflectionsLabel: 'Mga Pagninilay:',
-  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon. Mayroon bang nais ibahagi sa mga katrabaho, magulang, o mga lider ng paaralan?',
+  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon batay sa nangyari ngayon. Mayroon bang bagay na interesado ang mga mag-aaral na tuklasin?\n\nMayroon bang mga bagay na nais mong ibahagi sa iyong mga katrabahong guro, magulang, o mga lider ng paaralan tungkol sa iyong karanasan sa silid-aralan? Ano ang nais mong tulungan sa iyo ng iyong instructional coach?\n\nMaaaring isulat ang mga pagninilay sa maikling tala, mga bullet, o mga anotasyon.',
+
   afterSession: 'Pagkatapos ng Sesyon',
   notesToShare: 'Mga tala para ibahagi sa mga katrabahong guro, magulang, o mga lider ng paaralan:',
   coachHelp: 'Nais kong tulungan ako ng aking instructional coach sa:',
 };
 
-// ── Paragraph helpers ──────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Paragraph helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function p(text: string, bold = false, size = 20, color = '000000', italics = false): Paragraph {
   return new Paragraph({
@@ -166,11 +251,16 @@ function bul(text: string): Paragraph {
   });
 }
 
-// ── Subheading detector ────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Subheading detector
+// FIX #2: Removed Cognitive / Psychomotor / Affective from the list since those
+// are from the old DLP format (DO 42 s.2016) which is repealed by DO 016 s.2026.
+// ─────────────────────────────────────────────────────────────────────────────
 
 function isSubheadingLine(trimmed: string): boolean {
+  // FIX #2: Cognitive/Psychomotor/Affective intentionally removed
   if (/^\*\*[^*]+\*\*:?\s*$/.test(trimmed)) return true;
-  if (/^(Cognitive|Psychomotor|Affective|Materials|Procedure|Purpose|Objective Link|Guiding Questions):?$/i.test(trimmed)) return true;
+  if (/^(Materials|Procedure|Purpose|Objective Link|Guiding Questions):?$/i.test(trimmed)) return true;
   if (/^(Detailed teacher instructions|Student actions and expected responses|Contextualized example problems):?$/i.test(trimmed)) return true;
   if (/^(Differentiated Instructions|Synthesis and Reflection|Closing discussion|Exit ticket|Real-life connection):?$/i.test(trimmed)) return true;
   if (/^(For All Learners|For Learners Who Need Support|For Advanced Learners):?$/i.test(trimmed)) return true;
@@ -181,8 +271,9 @@ function isSubheadingLine(trimmed: string): boolean {
   if (/^(Special Topics \/ Career Awareness|Technology \(Future Integration\)|Technology):?$/i.test(trimmed)) return true;
   if (/^(Description|Administration|How results are used|Rubric or scoring guide|Accommodation for diverse learners):?$/i.test(trimmed)) return true;
   if (/^(Sample warm-up question|Sample tasks or questions):?$/i.test(trimmed)) return true;
-  
-  if (/^(Kognitibo|Sikolohikal|Psikomotor|Pandama|Pagpapahalaga):?$/i.test(trimmed)) return true;
+  if (/^(Learning Design Principle Applied|Evidence of Learning):?$/i.test(trimmed)) return true;
+
+  // Filipino subheadings — FIX #2: Kognitibo/Sikolohikal/Pandama removed
   if (/^(Mga Kagamitan|Mga Hakbang|Layunin ng Aktibidad|Mga Gabay na Tanong|Kaugnay na Layunin):?$/i.test(trimmed)) return true;
   if (/^(Mga tagubilin para sa guro|Mga aksyon ng mag-aaral at inaasahang tugon|Mga halimbawang kontekstwalisado):?$/i.test(trimmed)) return true;
   if (/^(Mga Naka-differentiate na Tagubilin|Buod at Repleksyon|Pangwakas na talakayan|Koneksyon sa tunay na buhay):?$/i.test(trimmed)) return true;
@@ -201,7 +292,9 @@ function isSubheadingLine(trimmed: string): boolean {
   return false;
 }
 
-// ── Convert AI text → Paragraphs ─────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Convert AI text → Paragraphs
+// ─────────────────────────────────────────────────────────────────────────────
 
 function toParas(text: string): Paragraph[] {
   if (!text || !text.trim()) return [emptyP()];
@@ -249,7 +342,9 @@ function toParas(text: string): Paragraph[] {
   return result.length > 0 ? result : [emptyP()];
 }
 
-// ── Table helpers ──────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Table helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function row2(labelParas: Paragraph[], contentParas: Paragraph[]): TableRow {
   return new TableRow({
@@ -305,7 +400,11 @@ function labelCell(title: string, desc: string): Paragraph[] {
   return paras;
 }
 
-// ── Parse AI output sections ───────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Parse AI output sections
+// FIX #1: WAYS_FORWARD normalizes to EXTENDED_LEARNING (consistent with
+// route.ts promptD output tag — both should now use EXTENDED_LEARNING).
+// ─────────────────────────────────────────────────────────────────────────────
 
 function parseSection(content: string, tag: string): string {
   const ALL_TAGS = [
@@ -316,24 +415,40 @@ function parseSection(content: string, tag: string): string {
   ];
 
   function normalize(s: string): string {
+    // Strip heading markers, bold markers, trailing colons, and leading dashes
+    // so Mistral/OpenRouter formatting quirks don't break tag detection.
     let clean = s
-      .replace(/[#*:]/g, '')
+      .replace(/^#{1,4}\s*/, '')          // ## headings
+      .replace(/\*{1,2}/g, '')             // **bold** markers
+      .replace(/:+$/, '')                   // trailing colon(s)
+      .replace(/^[-–—]+\s*/, '')           // leading dash separators
       .trim()
       .toUpperCase()
       .replace(/[\s\-]+/g, '_');
-    
-    // Tugisin ang mga shorthand text styles mula sa LLM stream
+
+    // Alias resolution — keeps backward-compat if old or variant tags appear
     if (clean === 'RESOURCES' || clean === 'LEARNING_RESOURCE') return 'LEARNING_RESOURCES';
-    if (clean === 'INTEGRATION' || clean === 'OPPORTUNITIES_FOR_INTEGRATION_TECHNOLOGY' || clean === 'OPPORTUNITY_FOR_INTEGRATION') return 'OPPORTUNITIES_FOR_INTEGRATION';
-    if (clean === 'WAYS_FORWARD' || clean === 'EXTENDED_LEARNING_OPPORTUNITIES') return 'EXTENDED_LEARNING';
+    if (clean === 'REFERENCE') return 'REFERENCES';
+    if (
+      clean === 'INTEGRATION' ||
+      clean === 'OPPORTUNITIES_FOR_INTEGRATION_TECHNOLOGY' ||
+      clean === 'OPPORTUNITY_FOR_INTEGRATION' ||
+      clean === 'OPPORTUNITIES_FOR_INTEGRATION_AND_CONTEXTUALIZATION' ||
+      clean === 'INTEGRATION_AND_CONTEXTUALIZATION'
+    ) return 'OPPORTUNITIES_FOR_INTEGRATION';
+    // FIX #1: Both WAYS_FORWARD and EXTENDED_LEARNING_OPPORTUNITIES map to EXTENDED_LEARNING
+    if (
+      clean === 'WAYS_FORWARD' ||
+      clean === 'EXTENDED_LEARNING_OPPORTUNITIES'
+    ) return 'EXTENDED_LEARNING';
     return clean;
   }
 
   const tagNorm = normalize(tag);
   const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  
+
   let startLine = -1;
-  
+
   for (let i = 0; i < lines.length; i++) {
     if (normalize(lines[i]) === tagNorm) {
       startLine = i;
@@ -346,12 +461,18 @@ function parseSection(content: string, tag: string): string {
     for (let i = startLine + 1; i < lines.length; i++) {
       const currentLineNorm = normalize(lines[i]);
       const currentRawUpper = lines[i].trim().toUpperCase();
-      
-      // Strict matching guardrails laban sa tag-leakage
+
       if (ALL_TAGS.map(t => normalize(t)).includes(currentLineNorm) && currentLineNorm !== tagNorm) {
         break;
       }
-      if (tagNorm === 'FORMATIVE_ASSESSMENT' && (currentRawUpper.includes('WAYS FORWARD') || currentRawUpper.includes('WAYS_FORWARD') || currentLineNorm === 'EXTENDED_LEARNING')) {
+      if (
+        tagNorm === 'FORMATIVE_ASSESSMENT' &&
+        (
+          currentRawUpper.includes('WAYS FORWARD') ||
+          currentRawUpper.includes('WAYS_FORWARD') ||
+          currentLineNorm === 'EXTENDED_LEARNING'
+        )
+      ) {
         break;
       }
       if (/^##\s+(SESSION|SESYON)\s+\d+/i.test(lines[i].trim()) && tagNorm === 'PRE_LESSON') {
@@ -374,7 +495,14 @@ function parseSection(content: string, tag: string): string {
       const nextRawUpper = lines[j].trim().toUpperCase();
 
       if (ALL_TAGS.map(t => normalize(t)).includes(nextLineNorm)) break;
-      if (tagNorm === 'FORMATIVE_ASSESSMENT' && (nextRawUpper.includes('WAYS FORWARD') || nextRawUpper.includes('WAYS_FORWARD') || nextLineNorm === 'EXTENDED_LEARNING')) {
+      if (
+        tagNorm === 'FORMATIVE_ASSESSMENT' &&
+        (
+          nextRawUpper.includes('WAYS FORWARD') ||
+          nextRawUpper.includes('WAYS_FORWARD') ||
+          nextLineNorm === 'EXTENDED_LEARNING'
+        )
+      ) {
         break;
       }
 
@@ -386,7 +514,9 @@ function parseSection(content: string, tag: string): string {
   return '';
 }
 
-// ── Main export ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Main export
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function buildDocx(
   aiContent: string,
@@ -398,22 +528,36 @@ export async function buildDocx(
 ) {
   const isFilipino = isFilipinoPH(learningArea);
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
-  
+
   const get = (key: string) => {
     const text = parseSection(aiContent, key);
     return text ? toParas(text) : [emptyP()];
   };
 
+  // ── FIX #4: Reflections rows are kept as blank writeable templates.
+  // The AI-generated REFLECTIONS section (if any) is no longer silently
+  // discarded — if the AI outputs a REFLECTIONS tag, it will be parsed
+  // and used. If not, we fall back to blank per-session rows so the teacher
+  // can handwrite them. This is consistent with the DO's intent that
+  // reflections are a professional practice record, not a generated document.
+  const reflectionText = parseSection(aiContent, 'REFLECTIONS');
   const sessionCount = parseInt(noOfSessions) || 3;
   const reflectionLines: Paragraph[] = [];
-  for (let i = 1; i <= sessionCount; i++) {
-    reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
-    reflectionLines.push(emptyP(), emptyP(), emptyP());
+
+  if (reflectionText) {
+    // AI provided reflection content — render it
+    reflectionLines.push(...toParas(reflectionText));
+  } else {
+    // Fallback: blank per-session template rows for the teacher to fill in
+    for (let i = 1; i <= sessionCount; i++) {
+      reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
+      reflectionLines.push(emptyP(), emptyP(), emptyP());
+    }
+    reflectionLines.push(p(L.notesToShare, true));
+    reflectionLines.push(emptyP(), emptyP());
+    reflectionLines.push(p(L.coachHelp, true));
+    reflectionLines.push(emptyP(), emptyP());
   }
-  reflectionLines.push(p(L.notesToShare, true));
-  reflectionLines.push(emptyP(), emptyP());
-  reflectionLines.push(p(L.coachHelp, true));
-  reflectionLines.push(emptyP(), emptyP());
 
   const doc = new Document({
     numbering: {
@@ -451,12 +595,14 @@ export async function buildDocx(
       },
       children: [
 
+        // ── Document title ──────────────────────────────────────────────────
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { after: 200 },
           children: [new TextRun({ text: L.docTitle, bold: true, size: 24, font: 'Arial' })],
         }),
 
+        // ── Header table: lesson metadata ───────────────────────────────────
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
@@ -468,10 +614,17 @@ export async function buildDocx(
             row2([p(L.noOfSessions, true)], [p(noOfSessions)]),
             row2(
               [p(L.references, true), p(L.referencesDesc, false, 17, '555555', true)],
-              parseSection(aiContent, 'REFERENCES') ? get('REFERENCES') : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
+              parseSection(aiContent, 'REFERENCES')
+                ? get('REFERENCES')
+                : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
             ),
             row2(
-              [p(L.aiDeclaration, true), emptyP(), p(L.aiDeclarationDesc, false, 17, '555555', true), p(L.aiDeclarationLink, false, 17, '1155CC', true)],
+              [
+                p(L.aiDeclaration, true),
+                emptyP(),
+                p(L.aiDeclarationDesc, false, 17, '555555', true),
+                p(L.aiDeclarationLink, false, 17, '1155CC', true),
+              ],
               get('DECLARATION_AI'),
             ),
           ],
@@ -479,12 +632,16 @@ export async function buildDocx(
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
+        // ── I: INTENTIONS ───────────────────────────────────────────────────
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.intentionsBanner, L.intentionsDesc),
             row2(labelCell(L.competencyLabel, L.competencyDesc), get('LEARNING_COMPETENCY')),
+            // FIX #2: Objectives section rendered as-is — no Cognitive/Psychomotor/Affective
+            // sub-labeling in the docx layout. The AI content no longer contains those
+            // sub-labels either (handled in route.ts fix). Plain focused objectives only.
             row2(labelCell(L.objectivesLabel, L.objectivesDesc), get('LEARNING_OBJECTIVES')),
             row2(labelCell(L.learnerContextLabel, L.learnerContextDesc), get('LEARNER_CONTEXT')),
           ],
@@ -492,37 +649,48 @@ export async function buildDocx(
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
+        // ── L: LEARNING EXPERIENCE ──────────────────────────────────────────
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.learningExpBanner, L.learningExpDesc),
             row2(labelCell(L.preLessonLabel, L.preLessonDesc), get('PRE_LESSON')),
+            // FIX #3: Flow label desc now communicates principles-based flexibility
+            // (the label text change is in ENGLISH_LABELS/FILIPINO_LABELS above)
             row2(labelCell(L.flowLabel, L.flowDesc), get('FLOW')),
             row2(labelCell(L.resourcesLabel, L.resourcesDesc), get('LEARNING_RESOURCES')),
+            // FIX #5: Label now reads "integration and contextualization"
             row2(labelCell(L.integrationLabel, L.integrationDesc), get('OPPORTUNITIES_FOR_INTEGRATION')),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
+        // ── A: ASSESSING LEARNING ────────────────────────────────────────────
+        // FIX #7: Banner key changed from assessmentBanner to assessingLearningBanner
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
-            banner(L.assessmentBanner, L.assessmentDesc),
+            banner(L.assessingLearningBanner, L.assessingLearningDesc),
             row2(labelCell(L.formativeLabel, L.formativeDesc), get('FORMATIVE_ASSESSMENT')),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
+        // ── W: WAYS FORWARD ─────────────────────────────────────────────────
         new Table({
           width: { size: W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             banner(L.waysForwardBanner, L.waysForwardDesc),
-            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')), // <--- NAITAMA NA SA EXTENDED_LEARNING MULA WAYS_FORWARD
+            // FIX #1: Uses EXTENDED_LEARNING tag — aligns with route.ts promptD
+            // which now outputs EXTENDED_LEARNING (not WAYS_FORWARD)
+            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
+            // FIX #4: reflectionLines now renders AI content if available,
+            // otherwise falls back to blank per-session template rows
             row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
           ],
         }),
@@ -534,4 +702,157 @@ export async function buildDocx(
   const blob = await Packer.toBlob(doc);
   const filename = `${lessonName.replace(/[^a-z0-9]/gi, '_')}_${isFilipino ? 'Plano_sa_Aralin' : 'ILAW'}.docx`;
   saveAs(blob, filename);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Server-side export — returns a Buffer instead of triggering a browser download.
+// Used by /api/download/route.ts so the `docx` package never runs in the browser.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function buildDocxBuffer(
+  aiContent: string,
+  teacherName: string,
+  lessonName: string,
+  learningArea = '',
+  gradeSection = '',
+  noOfSessions = '',
+): Promise<Buffer> {
+  const isFilipino = isFilipinoPH(learningArea);
+  const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
+
+  const get = (key: string) => {
+    const text = parseSection(aiContent, key);
+    return text ? toParas(text) : [emptyP()];
+  };
+
+  const reflectionText = parseSection(aiContent, 'REFLECTIONS');
+  const sessionCount = parseInt(noOfSessions) || 3;
+  const reflectionLines: Paragraph[] = [];
+
+  if (reflectionText) {
+    reflectionLines.push(...toParas(reflectionText));
+  } else {
+    for (let i = 1; i <= sessionCount; i++) {
+      reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
+      reflectionLines.push(emptyP(), emptyP(), emptyP());
+    }
+    reflectionLines.push(p(L.notesToShare, true));
+    reflectionLines.push(emptyP(), emptyP());
+    reflectionLines.push(p(L.coachHelp, true));
+    reflectionLines.push(emptyP(), emptyP());
+  }
+
+  const doc = new Document({
+    numbering: {
+      config: [
+        {
+          reference: 'bullets',
+          levels: [{
+            level: 0, format: LevelFormat.BULLET, text: '\u2022',
+            alignment: AlignmentType.LEFT,
+            style: {
+              paragraph: { indent: { left: 560, hanging: 280 } },
+              run: { font: 'Arial', size: 20 },
+            },
+          }],
+        },
+        {
+          reference: 'numbers',
+          levels: [{
+            level: 0, format: LevelFormat.DECIMAL, text: '%1.',
+            alignment: AlignmentType.LEFT,
+            style: {
+              paragraph: { indent: { left: 560, hanging: 280 } },
+              run: { font: 'Arial', size: 20 },
+            },
+          }],
+        },
+      ],
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840 },
+          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+        },
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: L.docTitle, bold: true, size: 24, font: 'Arial' })],
+        }),
+        new Table({
+          width: { size: W, type: WidthType.DXA },
+          columnWidths: [LABEL_W, CONTENT_W],
+          rows: [
+            row2([p(L.lessonName, true)], [p(lessonName)]),
+            row2([p(L.learningArea, true)], [p(learningArea)]),
+            row2([p(L.designedBy, true)], [p(teacherName)]),
+            row2([p(L.gradeSection, true)], [p(gradeSection)]),
+            row2([p(L.noOfSessions, true)], [p(noOfSessions)]),
+            row2(
+              [p(L.references, true), p(L.referencesDesc, false, 17, '555555', true)],
+              parseSection(aiContent, 'REFERENCES')
+                ? get('REFERENCES')
+                : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
+            ),
+            row2(
+              [
+                p(L.aiDeclaration, true),
+                emptyP(),
+                p(L.aiDeclarationDesc, false, 17, '555555', true),
+                p(L.aiDeclarationLink, false, 17, '1155CC', true),
+              ],
+              get('DECLARATION_AI'),
+            ),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 160 }, children: [] }),
+        new Table({
+          width: { size: W, type: WidthType.DXA },
+          columnWidths: [LABEL_W, CONTENT_W],
+          rows: [
+            banner(L.intentionsBanner, L.intentionsDesc),
+            row2(labelCell(L.competencyLabel, L.competencyDesc), get('LEARNING_COMPETENCY')),
+            row2(labelCell(L.objectivesLabel, L.objectivesDesc), get('LEARNING_OBJECTIVES')),
+            row2(labelCell(L.learnerContextLabel, L.learnerContextDesc), get('LEARNER_CONTEXT')),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 160 }, children: [] }),
+        new Table({
+          width: { size: W, type: WidthType.DXA },
+          columnWidths: [LABEL_W, CONTENT_W],
+          rows: [
+            banner(L.learningExpBanner, L.learningExpDesc),
+            row2(labelCell(L.preLessonLabel, L.preLessonDesc), get('PRE_LESSON')),
+            row2(labelCell(L.flowLabel, L.flowDesc), get('FLOW')),
+            row2(labelCell(L.resourcesLabel, L.resourcesDesc), get('LEARNING_RESOURCES')),
+            row2(labelCell(L.integrationLabel, L.integrationDesc), get('OPPORTUNITIES_FOR_INTEGRATION')),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 160 }, children: [] }),
+        new Table({
+          width: { size: W, type: WidthType.DXA },
+          columnWidths: [LABEL_W, CONTENT_W],
+          rows: [
+            banner(L.assessingLearningBanner, L.assessingLearningDesc),
+            row2(labelCell(L.formativeLabel, L.formativeDesc), get('FORMATIVE_ASSESSMENT')),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 160 }, children: [] }),
+        new Table({
+          width: { size: W, type: WidthType.DXA },
+          columnWidths: [LABEL_W, CONTENT_W],
+          rows: [
+            banner(L.waysForwardBanner, L.waysForwardDesc),
+            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
+            row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
+          ],
+        }),
+      ],
+    }],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
 }

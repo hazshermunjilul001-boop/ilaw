@@ -18,10 +18,10 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
 
   const LOADING_MESSAGES = [
-    '🤖 Groq AI is crafting your lesson plan...',
+    '🤖 AI is crafting your ILAW lesson plan...',
     '📝 Writing learning competencies and objectives...',
-    '🎯 Designing session flow and activities...',
-    '🏙️ Adding Residence City context to examples...',
+    '🎯 Designing session flow using Learning Design Principles...',
+    '🏙️ Contextualizing examples for your city...',
     '📊 Building formative assessments...',
     '🌱 Almost done — finalizing your DOCX...',
   ];
@@ -46,20 +46,41 @@ export default function Home() {
       if (data.error) throw new Error(data.error);
       if (!data.content) throw new Error('No content returned');
 
-      // Debugging logs matching route.ts output properties
       console.log('RAW CONTENT PREVIEW:', data.content.substring(0, 2000));
-      
-      const { buildDocx } = await import('../lib/buildDocx');
-      
-      // Execute file generation matching your structural parameters
-      await buildDocx(
-        data.content,
-        form.teacherName,
-        form.lessonName,
-        form.learningArea,
-        form.gradeSection,
-        form.sessions
-      );
+
+      // Call the server-side download route — buildDocx runs on the server
+      // so the `docx` Node.js package never gets bundled into the browser.
+      const dlRes = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: data.content,
+          teacherName: form.teacherName,
+          lessonName: form.lessonName,
+          learningArea: form.learningArea,
+          gradeSection: form.gradeSection,
+          sessions: form.sessions,
+        }),
+      });
+
+      if (!dlRes.ok) {
+        const errData = await dlRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to generate DOCX');
+      }
+
+      // Trigger browser download from the binary response
+      const blob = await dlRes.blob();
+      const safeName = form.lessonName
+        ? form.lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
+        : 'ILAW_Lesson_Plan';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
 
       setStatus('success');
     } catch (e) {
@@ -76,17 +97,92 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const allFilled = form.lessonName && form.competency && form.teacherName && form.learningArea && form.schoolCity;
+  // ── FIX #6: gradeSection and sessions are now required before the button activates.
+  // Both are mandatory header fields in Annex B of DO 016 s.2026, and sessions
+  // directly controls the reflection template row count in buildDocx.
+  const allFilled =
+    form.lessonName &&
+    form.learningArea &&
+    form.teacherName &&
+    form.gradeSection &&
+    form.sessions &&
+    form.competency &&
+    form.schoolCity;
 
+  // ── Field definitions — labels match the header field names in buildDocx.ts ──
+  // lessonName   → "Lesson Title"        (was "Name of Lesson")
+  // learningArea → "Learning Area/s"     (unchanged)
+  // teacherName  → "Name of Teacher/s"   (was "Teacher's Name")
+  // gradeSection → "Grade Level and Section" (unchanged)
+  // sessions     → "No. of Sessions"     (unchanged, now required)
+  // schoolCity   → "School City / Municipality" (unchanged)
+  // competency   → "Learning Competency (MELC)" (unchanged)
+  // classroomDetails → optional context  (unchanged)
   const fields = [
-    { key: 'lessonName', label: 'Name of Lesson', placeholder: 'e.g. Law of Sines — Oblique Triangles', icon: '📖', area: false },
-    { key: 'learningArea', label: 'Learning Area', placeholder: 'e.g. Mathematics 10', icon: '🎓', area: false },
-    { key: 'teacherName', label: 'Teacher\'s Name', placeholder: 'Your full name', icon: '👩‍🏫', area: false },
-    { key: 'gradeSection', label: 'Grade Level & Section', placeholder: 'e.g. Grade 10 — Rizal', icon: '🏫', area: false },
-    { key: 'schoolCity', label: 'School City / Municipality', placeholder: 'e.g. Davao City, Cebu City, Manila, Quezon City...', icon: '📍', area: false },
-    { key: 'sessions', label: 'No. of Sessions & Duration', placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min', icon: '⏱️', area: false },
-    { key: 'competency', label: 'Learning Competency (MELC)', placeholder: 'Paste the full MELC text and code here...', icon: '🎯', area: true },
-    { key: 'classroomDetails', label: 'Classroom Details', placeholder: 'e.g. 50 students, no projector/TV, blackboard, cartolina available, contextualized triggers...', icon: '🏡', area: true },
+    {
+      key: 'lessonName',
+      label: 'Lesson Title',
+      placeholder: 'e.g. Law of Sines — Oblique Triangles',
+      icon: '📖',
+      area: false,
+      required: true,
+    },
+    {
+      key: 'learningArea',
+      label: 'Learning Area/s',
+      placeholder: 'e.g. Mathematics 10',
+      icon: '🎓',
+      area: false,
+      required: true,
+    },
+    {
+      key: 'teacherName',
+      label: 'Name of Teacher/s',
+      placeholder: 'Your full name',
+      icon: '👩‍🏫',
+      area: false,
+      required: true,
+    },
+    {
+      key: 'gradeSection',
+      label: 'Grade Level and Section',
+      placeholder: 'e.g. Grade 10 — Rizal',
+      icon: '🏫',
+      area: false,
+      required: true,   // FIX #6: now required
+    },
+    {
+      key: 'schoolCity',
+      label: 'School City / Municipality',
+      placeholder: 'e.g. Davao City, Cebu City, Manila...',
+      icon: '📍',
+      area: false,
+      required: true,
+    },
+    {
+      key: 'sessions',
+      label: 'No. of Sessions & Duration',
+      placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min',
+      icon: '⏱️',
+      area: false,
+      required: true,   // FIX #6: now required
+    },
+    {
+      key: 'competency',
+      label: 'Learning Competency (MELC)',
+      placeholder: 'Paste the full MELC text and code here...',
+      icon: '🎯',
+      area: true,
+      required: true,
+    },
+    {
+      key: 'classroomDetails',
+      label: 'Classroom Details (optional)',
+      placeholder: 'e.g. 50 students, no projector/TV, blackboard and cartolina available, learner context notes...',
+      icon: '🏡',
+      area: true,
+      required: false,
+    },
   ];
 
   return (
@@ -213,6 +309,20 @@ export default function Home() {
           box-shadow: 0 6px 18px rgba(244,114,182,0.5);
         }
 
+        /* ── DO 016 info strip ── */
+        .do-strip {
+          background: rgba(124,58,237,0.07);
+          border: 1px solid rgba(167,139,250,0.3);
+          border-radius: 14px;
+          padding: 12px 20px;
+          margin-bottom: 20px;
+          font-size: 12.5px;
+          color: #5b4f7a;
+          line-height: 1.6;
+          text-align: center;
+        }
+        .do-strip strong { color: #6d28d9; }
+
         .card {
           background: rgba(255,255,255,0.75);
           backdrop-filter: blur(20px);
@@ -261,6 +371,13 @@ export default function Home() {
 
         .field-label .icon { font-size: 14px; }
 
+        /* Required marker */
+        .req {
+          color: #ec4899;
+          font-size: 11px;
+          margin-left: 2px;
+        }
+
         .field-input, .field-textarea {
           width: 100%;
           padding: 11px 14px;
@@ -283,6 +400,14 @@ export default function Home() {
         }
 
         .field-textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
+
+        /* Required field hint */
+        .req-note {
+          font-size: 11.5px;
+          color: #b8a9cc;
+          margin-top: 4px;
+        }
+        .req-note span { color: #ec4899; }
 
         .gen-wrap { margin-top: 28px; }
 
@@ -351,7 +476,7 @@ export default function Home() {
         }
 
         .status-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-        .status-error { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+        .status-error   { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
         .status-loading { background: #faf5ff; color: #6d28d9; border: 1px solid #e9d5ff; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -413,9 +538,9 @@ export default function Home() {
           color: white;
         }
 
-        .gcash-label { font-size: 12px; font-weight: 600; letter-spacing: 1px; opacity: 0.8; margin-bottom: 6px; }
+        .gcash-label  { font-size: 12px; font-weight: 600; letter-spacing: 1px; opacity: 0.8; margin-bottom: 6px; }
         .gcash-number { font-size: 28px; font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; }
-        .gcash-name { font-size: 13px; opacity: 0.85; }
+        .gcash-name   { font-size: 13px; opacity: 0.85; }
 
         .copy-btn {
           width: 100%;
@@ -464,10 +589,10 @@ export default function Home() {
 
           {/* ── HEADER ── */}
           <header className="header">
-            <div className="header-badge">✦ DepEd ILAW Framework ✦</div>
+            <div className="header-badge">✦ DepEd DO 016 s.2026 · ILAW Framework ✦</div>
             <h1>ILAW Lesson Plan<br /><span>Generator</span></h1>
             <p className="header-sub">
-              Generate detailed, contextualized, and classroom-ready ILAW-format lesson plans in seconds — tailored for DepEd teachers.
+              Generate contextualized, classroom-ready ILAW-format lesson plans aligned with DepEd Order No. 016, s. 2026 — designed for Filipino teachers.
             </p>
             <div className="header-meta">
               <span className="creator-tag">Crafted by <strong>Hazsher Briz Munjilul</strong></span>
@@ -479,11 +604,21 @@ export default function Home() {
             </div>
           </header>
 
+          {/* ── DO 016 INFO STRIP ── */}
+          <div className="do-strip">
+            📋 Aligned with <strong>DepEd Order No. 016, s. 2026</strong> — Guidelines on Lesson Planning and Learning Design.
+            Generates lesson plans using the <strong>ILAW Framework</strong>: Intentions · Learning Experience · Assessing Learning · Ways Forward.
+          </div>
+
           {/* ── MAIN CARD ── */}
           <div className="card">
             <div className="card-title">
               ✏️ Lesson Details
             </div>
+
+            <p className="req-note" style={{ marginBottom: 18 }}>
+              Fields marked <span>*</span> are required to generate your lesson plan.
+            </p>
 
             <div className="fields-grid">
               {fields.map(f => (
@@ -491,6 +626,7 @@ export default function Home() {
                   <label className="field-label">
                     <span className="icon">{f.icon}</span>
                     {f.label}
+                    {f.required && <span className="req">*</span>}
                   </label>
                   {f.area ? (
                     <textarea
@@ -533,6 +669,14 @@ export default function Home() {
                 )}
               </button>
 
+              {/* FIX #6: Show a hint if the button is still disabled so the teacher
+                  knows which required fields are still missing */}
+              {!allFilled && !loading && (
+                <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
+                  Please fill in all required fields <span>*</span> to enable generation.
+                </p>
+              )}
+
               {status === 'generating' && (
                 <div className="status-box status-loading">
                   🤖 {loadingMessage}
@@ -555,7 +699,7 @@ export default function Home() {
           <footer className="footer">
             <p>Made with 💜 for DepEd teachers in the <strong>Philippines</strong></p>
             <p style={{ marginTop: 4 }}>
-              ILAW Framework · SY 2026–2027 · Created by <strong>Hazsher Briz Munjilul</strong>
+              ILAW Framework · DO 016 s.2026 · SY 2026–2027 · Created by <strong>Hazsher Briz Munjilul</strong>
             </p>
           </footer>
 
