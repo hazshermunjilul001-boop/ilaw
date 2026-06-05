@@ -461,13 +461,53 @@ EXTENDED_LEARNING
       return result;
     }
 
+    // ── callAIWithRetry: wraps callAI with one automatic retry after a delay ──
+    // When all providers are rate-limited simultaneously, a short wait is usually
+    // enough for at least one provider's window to reset. The retry runs silently
+    // so the user just sees a longer loading time instead of an error.
+    async function callAIWithRetry(
+      userPrompt: string,
+      callLabel: string,
+      retryDelayMs = 35000,   // 35 seconds — covers most short Groq rate-limit windows
+      maxRetries = 2,
+    ): Promise<string> {
+      let lastError: Error | null = null;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await callAI(userPrompt, callLabel);
+        } catch (err: any) {
+          lastError = err;
+          const isRateLimit =
+            err?.message?.includes('rate limit') ||
+            err?.message?.includes('rate_limit') ||
+            err?.message?.includes('Try again in') ||
+            err?.message?.includes('currently unavailable');
+
+          if (isRateLimit && attempt < maxRetries) {
+            // Parse the suggested wait time from the error message if available,
+            // but cap it at 60s so we don't block the serverless function too long.
+            const waitMatch = err?.message?.match(/(\d+)m(\d+(?:\.\d+)?)?s?/);
+            const waitMs = waitMatch
+              ? Math.min((parseInt(waitMatch[1]) * 60 + parseFloat(waitMatch[2] ?? '0')) * 1000, 60000)
+              : retryDelayMs;
+
+            console.warn(`[${callLabel}] All providers rate-limited. Retrying in ${Math.round(waitMs / 1000)}s... (attempt ${attempt}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+          } else {
+            throw err;
+          }
+        }
+      }
+      throw lastError ?? new Error(`All retries exhausted for ${callLabel}`);
+    }
+
     // ── Run all 4 calls in PARALLEL ───────────────────────────────────────────
     console.log('Starting 4 parallel calls: A(Header) B(PreLesson) C(Flow+Resources+Integration) D(Assessment+ExtendedLearning)');
     const [partA, partB, partC, partD] = await Promise.all([
-      callAI(promptA, 'A-HEADER'),
-      callAI(promptB, 'B-PRELESSON'),
-      callAI(promptC, 'C-FLOW'),
-      callAI(promptD, 'D-ASSESSMENT'),
+      callAIWithRetry(promptA, 'A-HEADER'),
+      callAIWithRetry(promptB, 'B-PRELESSON'),
+      callAIWithRetry(promptC, 'C-FLOW'),
+      callAIWithRetry(promptD, 'D-ASSESSMENT'),
     ]);
 
     console.log(`A: ${partA.length} | B: ${partB.length} | C: ${partC.length} | D: ${partD.length}`);
