@@ -16,6 +16,10 @@ export default function Home() {
   const [status, setStatus] = useState('');
   const [showDonation, setShowDonation] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null);
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
+  const [pptLoading, setPptLoading] = useState(false);
+  const [pptError, setPptError] = useState<string | null>(null);
 
   const LOADING_MESSAGES = [
     '🤖 AI is crafting your ILAW lesson plan...',
@@ -62,6 +66,9 @@ export default function Home() {
       }
       if (data.error) throw new Error(data.error);
       if (!data.content) throw new Error('No content returned from AI. Please try again.');
+
+      // Save content to state so the Generate Slides button can use it
+      setGeneratedContent(data.content);
 
       console.log('RAW CONTENT PREVIEW:', data.content.substring(0, 2000));
 
@@ -686,12 +693,186 @@ export default function Home() {
                 )}
               </button>
 
-              {/* FIX #6: Show a hint if the button is still disabled so the teacher
-                  knows which required fields are still missing */}
+              {/* FIX #6: Show a hint if the button is still disabled */}
               {!allFilled && !loading && (
                 <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
                   Please fill in all required fields <span>*</span> to enable generation.
                 </p>
+              )}
+
+              {/* Generate Slides button — appears after LP is generated */}
+              {generatedContent && !loading && (
+                <button
+                  onClick={() => setShowSupportPopup(true)}
+                  disabled={pptLoading}
+                  style={{
+                    marginTop: 14,
+                    width: '100%',
+                    padding: '14px 0',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: pptLoading
+                      ? '#888'
+                      : 'linear-gradient(135deg, #1B5E20 0%, #F9A825 100%)',
+                    color: '#fff',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    cursor: pptLoading ? 'not-allowed' : 'pointer',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {pptLoading ? '⏳ Generating Slides...' : '📊 Generate PowerPoint Slides'}
+                </button>
+              )}
+
+              {pptError && (
+                <p style={{ color: '#c0392b', marginTop: 8, textAlign: 'center', fontSize: 13 }}>
+                  ❌ {pptError}
+                </p>
+              )}
+
+              {/* GCash Support Popup */}
+              {showSupportPopup && (
+                <div style={{
+                  position: 'fixed', inset: 0, zIndex: 1000,
+                  background: 'rgba(0,0,0,0.55)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <div style={{
+                    background: '#fff', borderRadius: 18, padding: 32,
+                    maxWidth: 420, width: '90%', textAlign: 'center',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
+                  }}>
+                    {/* Gold top accent */}
+                    <div style={{ background: 'linear-gradient(135deg, #1B5E20, #F9A825)', height: 6, borderRadius: '12px 12px 0 0', margin: '-32px -32px 24px -32px' }} />
+
+                    <div style={{ fontSize: 40, marginBottom: 8 }}>🙏</div>
+                    <h2 style={{ color: '#1B5E20', fontSize: 20, fontWeight: 800, marginBottom: 8 }}>
+                      This Tool is Free for All Teachers!
+                    </h2>
+                    <p style={{ color: '#444', fontSize: 14, lineHeight: 1.6, marginBottom: 18 }}>
+                      If the <strong>ILAW LP Generator</strong> has saved you time and made lesson planning easier,
+                      please consider supporting the developer to keep this tool free and running for all DepEd teachers.
+                    </p>
+
+                    {/* GCash box */}
+                    <div style={{
+                      background: '#E8F5E9', border: '2px solid #1B5E20',
+                      borderRadius: 12, padding: '14px 20px', marginBottom: 20,
+                    }}>
+                      <p style={{ margin: 0, fontSize: 13, color: '#555', marginBottom: 4 }}>Support via GCash:</p>
+                      <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#1B5E20', letterSpacing: 1 }}>
+                        09333496704
+                      </p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#333', marginTop: 2 }}>
+                        Hazsher B. Munjilul
+                      </p>
+                    </div>
+
+                    <p style={{ color: '#666', fontSize: 12, marginBottom: 22, fontStyle: 'italic' }}>
+                      Every peso helps keep this tool free. But no pressure — your slides will be generated either way! 💚
+                    </p>
+
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                      <button
+                        onClick={async () => {
+                          setShowSupportPopup(false);
+                          setPptError(null);
+                          setPptLoading(true);
+                          try {
+                            const res = await fetch('/api/ppt', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                content: generatedContent,
+                                teacherName: form.teacherName,
+                                lessonName: form.lessonName,
+                                learningArea: form.learningArea,
+                                gradeSection: form.gradeSection,
+                                sessions: form.sessions,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({}));
+                              throw new Error(err.error || 'Failed to generate slides');
+                            }
+                            const blob = await res.blob();
+                            const safeName = form.lessonName
+                              ? form.lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
+                              : 'ILAW_Slides';
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${safeName}_Slides.pptx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          } catch (err: any) {
+                            setPptError(err.message || 'Failed to generate slides. Please try again.');
+                          } finally {
+                            setPptLoading(false);
+                          }
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #1B5E20, #2E7D32)',
+                          color: '#fff', border: 'none', borderRadius: 10,
+                          padding: '12px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                        }}
+                      >
+                        I'll Support! Generate Slides →
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setShowSupportPopup(false);
+                          setPptError(null);
+                          setPptLoading(true);
+                          try {
+                            const res = await fetch('/api/ppt', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                content: generatedContent,
+                                teacherName: form.teacherName,
+                                lessonName: form.lessonName,
+                                learningArea: form.learningArea,
+                                gradeSection: form.gradeSection,
+                                sessions: form.sessions,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => ({}));
+                              throw new Error(err.error || 'Failed to generate slides');
+                            }
+                            const blob = await res.blob();
+                            const safeName = form.lessonName
+                              ? form.lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
+                              : 'ILAW_Slides';
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${safeName}_Slides.pptx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          } catch (err: any) {
+                            setPptError(err.message || 'Failed to generate slides. Please try again.');
+                          } finally {
+                            setPptLoading(false);
+                          }
+                        }}
+                        style={{
+                          background: '#f0f0f0', color: '#555', border: '1px solid #ccc',
+                          borderRadius: 10, padding: '12px 22px', fontSize: 14,
+                          fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Maybe Later
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {status === 'generating' && (
