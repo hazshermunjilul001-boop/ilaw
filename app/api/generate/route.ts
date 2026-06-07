@@ -33,10 +33,11 @@ export async function POST(req: Request) {
     const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
     const hasMistral    = !!process.env.MISTRAL_API_KEY;
     const hasCerebras   = !!process.env.CEREBRAS_API_KEY;
+    const hasGemini     = !!process.env.GOOGLE_AI_KEY;
 
-    if (!hasGroq && !hasOpenRouter && !hasMistral && !hasCerebras) {
+    if (!hasGroq && !hasOpenRouter && !hasMistral && !hasCerebras && !hasGemini) {
       return NextResponse.json(
-        { error: 'No API key found. Add GROQ_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, or CEREBRAS_API_KEY to .env.local' },
+        { error: 'No API key found. Add GROQ_API_KEY, MISTRAL_API_KEY, GOOGLE_AI_KEY, or CEREBRAS_API_KEY to .env.local' },
         { status: 500 }
       );
     }
@@ -415,14 +416,33 @@ EXTENDED_LEARNING
         }
       }
 
-      // OpenRouter — try multiple models in order so if one is rate-limited
-      // the next one is attempted automatically.
+      // Google Gemini — free daily quota, resets every 24h, no credit card needed.
+      // Replaces OpenRouter which uses one-time credits that run out.
+      // Uses the OpenAI-compatible endpoint so tryProvider() works directly.
+      if (!result && hasGemini) {
+        const geminiModels = [
+          'gemini-2.0-flash',           // fastest, 1500 req/day free
+          'gemini-1.5-flash',           // fallback, also 1500 req/day free
+          'gemini-1.5-flash-8b',        // lightest, highest quota
+        ];
+        for (const model of geminiModels) {
+          const text = await tryProvider(
+            `Gemini/${model}`,
+            `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+            `Bearer ${process.env.GOOGLE_AI_KEY}`,
+            model,
+          );
+          if (text) { result = text; break; }
+        }
+      }
+
+      // OpenRouter — kept as last-resort only (credit-based, not daily reset).
+      // Will exhaust quickly but acts as emergency backup.
       if (!result && hasOpenRouter) {
         const orModels = [
-          'google/gemini-2.5-flash',
-          'google/gemini-2.5-pro',
-          'meta-llama/llama-3.3-70b-instruct',
-          'mistralai/mistral-large',
+          'meta-llama/llama-3.3-70b-instruct:free',
+          'mistralai/mistral-7b-instruct:free',
+          'google/gemma-3-27b-it:free',
         ];
         for (const model of orModels) {
           const text = await tryProvider(
