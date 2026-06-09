@@ -11,6 +11,8 @@ const GROQ_KEYS = [
   process.env.GROQ_API_KEY_3,
   process.env.GROQ_API_KEY_4,
   process.env.GROQ_API_KEY_5,
+  process.env.GROQ_API_KEY_6,
+  process.env.GROQ_API_KEY_7
 ].filter((k): k is string => !!k);
 
 export async function POST(req: Request) {
