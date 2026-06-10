@@ -308,9 +308,99 @@ EXTENDED_LEARNING
     // ── callAI: tries all providers in order, returns text or throws ──────────
     async function callAI(userPrompt: string, callLabel: string): Promise<string> {
       let result: string | null = null;
-      let callError: any = null;
+      const failReasons: string[] = [];
 
-      // Groq
+      // ── Helper: call any OpenAI-compatible REST endpoint ───────────────────
+      async function tryProvider(
+        label: string,
+        url: string,
+        authHeader: string,
+        model: string,
+        extraHeaders: Record<string, string> = {},
+        maxTok = 4096,
+      ): Promise<string | null> {
+        try {
+          console.log(`[${callLabel}] Trying ${label} (${model})...`);
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+              ...extraHeaders,
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: maxTok,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: 0.7,
+            }),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text().catch(() => '');
+            const reason = `${label} → HTTP ${response.status}: ${errText.slice(0, 120)}`;
+            console.warn(`[${callLabel}] ${reason}`);
+            failReasons.push(reason);
+            return null;
+          }
+
+          const data = await response.json();
+          const text: string = data.choices?.[0]?.message?.content ?? '';
+          if (!text) {
+            const reason = `${label} → empty response`;
+            console.warn(`[${callLabel}] ${reason}`);
+            failReasons.push(reason);
+            return null;
+          }
+          console.log(`[${callLabel}] ${label} success! Chars: ${text.length}`);
+          return text;
+        } catch (err: any) {
+          const reason = `${label} → exception: ${err?.message}`;
+          console.error(`[${callLabel}] ${reason}`);
+          failReasons.push(reason);
+          return null;
+        }
+      }
+
+      // ── PRIORITY 1: Google Gemini (1M tokens/day FREE — highest free quota) ──
+      // Always try Gemini first. It resets every 24h and handles high concurrency
+      // far better than Groq's shared per-org TPD limit.
+      if (!result && hasGemini) {
+        const geminiModels = [
+          'gemini-2.0-flash',      // 1M TPD free, fastest
+          'gemini-1.5-flash',      // 1M TPD free, reliable fallback
+          'gemini-1.5-flash-8b',   // highest quota ceiling
+        ];
+        for (const model of geminiModels) {
+          const text = await tryProvider(
+            `Gemini/${model}`,
+            `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+            `Bearer ${process.env.GOOGLE_AI_KEY}`,
+            model,
+          );
+          if (text) { result = text; break; }
+        }
+      }
+
+      // ── PRIORITY 2: Cerebras (free tier, fast inference) ─────────────────────
+      if (!result && hasCerebras) {
+        const cerebrasModels = ['llama-3.3-70b', 'llama3.3-70b'];
+        for (const model of cerebrasModels) {
+          const text = await tryProvider(
+            `Cerebras/${model}`,
+            'https://api.cerebras.ai/v1/chat/completions',
+            `Bearer ${process.env.CEREBRAS_API_KEY}`,
+            model,
+          );
+          if (text) { result = text; break; }
+        }
+      }
+
+      // ── PRIORITY 3: Groq key pool (500K TPD per org — burns fast under load) ──
+      // Tried AFTER Gemini and Cerebras so it is preserved for overflow only.
       if (!result && hasGroq) {
         const PREFERRED = [
           'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -359,8 +449,9 @@ EXTENDED_LEARNING
                 break outerGroq;
               }
             } catch (err: any) {
-              console.warn(`[${callLabel}] Groq key ...${apiKey.slice(-4)} | ${model} failed:`, err?.message);
-              callError = err;
+              const reason = `Groq ...${apiKey.slice(-4)}/${model} → ${err?.message?.slice(0, 120)}`;
+              console.warn(`[${callLabel}] ${reason}`);
+              failReasons.push(reason);
               if (!isSkippable(err)) throw err;
             }
           }
@@ -368,83 +459,26 @@ EXTENDED_LEARNING
         }
       }
 
-      // ── Helper: call any OpenAI-compatible REST endpoint ───────────────────
-      // Logs the failure reason clearly and returns null on any error so the
-      // next provider is always attempted rather than silently skipping.
-      async function tryProvider(
-        label: string,
-        url: string,
-        authHeader: string,
-        model: string,
-        extraHeaders: Record<string, string> = {},
-      ): Promise<string | null> {
-        try {
-          console.log(`[${callLabel}] Trying ${label} (${model})...`);
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': authHeader,
-              'Content-Type': 'application/json',
-              ...extraHeaders,
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: 4096,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt },
-              ],
-              temperature: 0.7,
-            }),
-          });
-
-          if (!response.ok) {
-            const errText = await response.text().catch(() => '');
-            console.warn(`[${callLabel}] ${label} returned ${response.status}: ${errText.slice(0, 200)}`);
-            return null;
-          }
-
-          const data = await response.json();
-          const text: string = data.choices?.[0]?.message?.content ?? '';
-          if (!text) {
-            console.warn(`[${callLabel}] ${label} returned empty content`);
-            return null;
-          }
-          console.log(`[${callLabel}] ${label} success! Chars: ${text.length}`);
-          return text;
-        } catch (err: any) {
-          console.error(`[${callLabel}] ${label} exception: ${err?.message}`);
-          return null;
-        }
-      }
-
-      // Google Gemini — free daily quota, resets every 24h, no credit card needed.
-      // Replaces OpenRouter which uses one-time credits that run out.
-      // Uses the OpenAI-compatible endpoint so tryProvider() works directly.
-      if (!result && hasGemini) {
-        const geminiModels = [
-          'gemini-2.0-flash',           // fastest, 1500 req/day free
-          'gemini-1.5-flash',           // fallback, also 1500 req/day free
-          'gemini-1.5-flash-8b',        // lightest, highest quota
-        ];
-        for (const model of geminiModels) {
+      // ── PRIORITY 4: Mistral (monthly quota — use last, burns slowly) ──────────
+      if (!result && hasMistral) {
+        const mistralModels = ['mistral-small-latest', 'mistral-large-latest'];
+        for (const model of mistralModels) {
           const text = await tryProvider(
-            `Gemini/${model}`,
-            `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
-            `Bearer ${process.env.GOOGLE_AI_KEY}`,
+            `Mistral/${model}`,
+            'https://api.mistral.ai/v1/chat/completions',
+            `Bearer ${process.env.MISTRAL_API_KEY}`,
             model,
           );
           if (text) { result = text; break; }
         }
       }
 
-      // OpenRouter — kept as last-resort only (credit-based, not daily reset).
-      // Will exhaust quickly but acts as emergency backup.
+      // ── PRIORITY 5: OpenRouter (credit-based — last resort) ──────────────────
       if (!result && hasOpenRouter) {
         const orModels = [
           'meta-llama/llama-3.3-70b-instruct:free',
-          'mistralai/mistral-7b-instruct:free',
           'google/gemma-3-27b-it:free',
+          'mistralai/mistral-7b-instruct:free',
         ];
         for (const model of orModels) {
           const text = await tryProvider(
@@ -458,41 +492,16 @@ EXTENDED_LEARNING
         }
       }
 
-      // Mistral — try both large and smaller model as fallback
-      if (!result && hasMistral) {
-        const mistralModels = ['mistral-large-latest', 'mistral-small-latest'];
-        for (const model of mistralModels) {
-          const text = await tryProvider(
-            `Mistral/${model}`,
-            'https://api.mistral.ai/v1/chat/completions',
-            `Bearer ${process.env.MISTRAL_API_KEY}`,
-            model,
-          );
-          if (text) { result = text; break; }
-        }
-      }
-
-      // Cerebras — try both available models
-      if (!result && hasCerebras) {
-        const cerebrasModels = ['llama-3.3-70b', 'llama3.3-70b'];
-        for (const model of cerebrasModels) {
-          const text = await tryProvider(
-            `Cerebras/${model}`,
-            'https://api.cerebras.ai/v1/chat/completions',
-            `Bearer ${process.env.CEREBRAS_API_KEY}`,
-            model,
-          );
-          if (text) { result = text; break; }
-        }
-      }
-
       if (!result) {
-        const wait = callError?.message?.match(/try again in (.+?)\./)?.[1];
-        throw new Error(
-          wait
-            ? `All models rate limited on ${callLabel}. Try again in ${wait}.`
-            : `All models currently unavailable on ${callLabel}. Please try again in a few minutes.`
-        );
+        // Build a user-friendly message from the collected failure reasons
+        const groqWait = failReasons
+          .map(r => r.match(/try again in (.+?)\./i)?.[1])
+          .find(Boolean);
+        const userMsg = groqWait
+          ? `Ang sistema ay abala ngayon / The service is busy right now. Please try again in ${groqWait}.`
+          : `Lahat ng AI providers ay abala / All AI providers are currently busy. Please try again in 5–10 minutes.`;
+        console.error(`[${callLabel}] ALL PROVIDERS FAILED:\n${failReasons.join('\n')}`);
+        throw new Error(userMsg);
       }
       return result;
     }
