@@ -385,10 +385,10 @@ EXTENDED_LEARNING
       // 1,500 req/day per key × 5 keys = 7,500 req/day free, resets every 24h.
       if (!result && hasGemini) {
         const geminiModels = [
-          'gemini-2.0-flash',
-          'gemini-2.0-flash-lite',
-          'gemini-1.5-flash',        // no "-latest" suffix on v1beta/openai endpoint
-          'gemini-1.5-flash-8b',     // no "-latest" suffix
+          'gemini-2.0-flash-001',        // stable versioned name for paid tier
+          'gemini-2.0-flash-lite-001',   // stable versioned lite
+          'gemini-1.5-flash-002',        // stable 1.5
+          'gemini-1.5-flash-8b-001',     // stable 1.5 small
         ];
         outerGemini:
         for (const apiKey of GEMINI_KEYS) {
