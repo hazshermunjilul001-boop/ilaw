@@ -389,9 +389,7 @@ EXTENDED_LEARNING
         // Key 1 (paid) uses v1 endpoint; free keys use v1beta
         for (let i = 0; i < GEMINI_KEYS.length; i++) {
           const apiKey = GEMINI_KEYS[i];
-          const endpoint = i === 0
-            ? 'https://generativelanguage.googleapis.com/v1/openai/chat/completions'
-            : 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+          const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
           for (const model of geminiModels) {
             const text = await tryProvider(
               `Gemini/${model}`,
@@ -408,8 +406,8 @@ EXTENDED_LEARNING
       // ── PRIORITY 2: Cerebras (free tier, fast inference) ─────────────────────
       if (!result && hasCerebras) {
         const cerebrasModels = [
-          'llama-3.3-70b',           // correct current slug (with hyphen, no dot)
-          'llama-3.1-8b',            // correct fallback
+          'llama3.3-70b',   // correct slug
+          'llama3.1-8b',    // correct slug
         ];
         for (const model of cerebrasModels) {
           const text = await tryProvider(
@@ -485,9 +483,9 @@ EXTENDED_LEARNING
       if (!result && hasOpenRouter) {
         const orModels = [
           'meta-llama/llama-3.3-70b-instruct:free',
-          'google/gemma-2-9b-it:free',
-          'qwen/qwen3-8b:free',
-          'microsoft/phi-3-medium-128k-instruct:free',
+          'mistralai/mistral-7b-instruct:free',
+          'google/gemma-3-4b-it:free',
+          'tngtech/deepseek-r1t-chimera:free',
         ];
         for (const model of orModels) {
           const text = await tryProvider(
