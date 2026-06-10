@@ -387,8 +387,8 @@ EXTENDED_LEARNING
         const geminiModels = [
           'gemini-2.0-flash',
           'gemini-2.0-flash-lite',
-          'gemini-1.5-flash-latest',
-          'gemini-1.5-flash-8b-latest',
+          'gemini-1.5-flash',        // no "-latest" suffix on v1beta/openai endpoint
+          'gemini-1.5-flash-8b',     // no "-latest" suffix
         ];
         outerGemini:
         for (const apiKey of GEMINI_KEYS) {
@@ -407,8 +407,8 @@ EXTENDED_LEARNING
       // ── PRIORITY 2: Cerebras (free tier, fast inference) ─────────────────────
       if (!result && hasCerebras) {
         const cerebrasModels = [
-          'llama-3.3-70b',
-          'llama3.1-8b',
+          'llama-3.3-70b',           // correct current slug (with hyphen, no dot)
+          'llama-3.1-8b',            // correct fallback
         ];
         for (const model of cerebrasModels) {
           const text = await tryProvider(
