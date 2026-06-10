@@ -96,7 +96,7 @@ export async function callAI(
     }
   }
 
-  // ── PRIORITY 1: Google Gemini (paid key first) ────────────────────────────
+  // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
   if (!result && hasGemini) {
     const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -110,16 +110,15 @@ export async function callAI(
   }
 
   // ── PRIORITY 2: Cerebras ──────────────────────────────────────────────────
+  // NOTE: llama-3.1-8b removed — returns 404. Only llama-3.3-70b is valid.
   if (!result && hasCerebras) {
-    for (const model of ['llama-3.3-70b', 'llama-3.1-8b']) {
-      const text = await tryProvider(
-        `Cerebras/${model}`,
-        'https://api.cerebras.ai/v1/chat/completions',
-        `Bearer ${process.env.CEREBRAS_API_KEY}`,
-        model,
-      );
-      if (text) { result = text; break; }
-    }
+    const text = await tryProvider(
+      'Cerebras/llama-3.3-70b',
+      'https://api.cerebras.ai/v1/chat/completions',
+      `Bearer ${process.env.CEREBRAS_API_KEY}`,
+      'llama-3.3-70b',
+    );
+    if (text) result = text;
   }
 
   // ── PRIORITY 3: Groq key pool ─────────────────────────────────────────────
