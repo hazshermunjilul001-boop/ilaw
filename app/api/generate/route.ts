@@ -37,6 +37,14 @@ export async function POST(req: Request) {
     const hasCerebras   = !!process.env.CEREBRAS_API_KEY;
     const hasGemini     = !!process.env.GOOGLE_AI_KEY;
 
+    console.log('Providers available:', {
+      groq: `${GROQ_KEYS.length} keys`,
+      gemini: hasGemini,
+      cerebras: hasCerebras,
+      mistral: hasMistral,
+      openRouter: hasOpenRouter,
+    });
+
     if (!hasGroq && !hasOpenRouter && !hasMistral && !hasCerebras && !hasGemini) {
       return NextResponse.json(
         { error: 'No API key found. Add GROQ_API_KEY, MISTRAL_API_KEY, GOOGLE_AI_KEY, or CEREBRAS_API_KEY to .env.local' },
