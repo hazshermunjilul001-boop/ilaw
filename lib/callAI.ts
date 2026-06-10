@@ -2,7 +2,7 @@
 // Shared AI provider fallback chain used by all generate sub-routes and ppt route.
 import Groq from 'groq-sdk';
 
-// Added .map(k => k?.trim()) to fix accidental spaces in Vercel Environment Variables
+// Automatically trim spaces from keys to prevent 401 Unauthorized errors
 export const GROQ_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
@@ -84,7 +84,6 @@ export async function callAI(
 
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
-        // Clean up formatting for the frontend debug message
         const reason = `${label} failed (${response.status}): ${errText.slice(0, 150)}`;
         console.warn(`[${callLabel}] ${reason}`);
         failReasons.push(reason);
@@ -109,7 +108,47 @@ export async function callAI(
     }
   }
 
-  // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
+  // ── PRIORITY 1: Groq key pool (Fastest) ───────────────────────────────────
+  if (!result && hasGroq) {
+    const GROQ_MODELS = [
+      'llama-3.3-70b-versatile',
+      'llama-3.1-8b-instant',
+    ];
+    outerGroq: for (const apiKey of GROQ_KEYS) {
+      const groqClient = new Groq({ apiKey });
+      for (const model of GROQ_MODELS) {
+        try {
+          console.log(`[${callLabel}] Trying Groq (${model}) with key ...${apiKey.slice(-4)}`);
+          const c = await groqClient.chat.completions.create({
+            model,
+            // Groq has a hard max token limit, so we clamp it to 8000
+            max_tokens: maxTok > 8000 ? 8000 : maxTok, 
+            temperature: 0.7,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          });
+          const text = c.choices[0]?.message?.content ?? '';
+          if (text) {
+            console.log(`[${callLabel}] Groq success!`);
+            result = text;
+            break outerGroq;
+          }
+        } catch (err: any) {
+          const reason = `Groq ${model} failed: ${err?.message?.slice(0, 150)}`;
+          console.warn(`[${callLabel}] ${reason}`);
+          failReasons.push(reason);
+          // If it's a critical error (like wrong API key), move on to next provider
+          if (!isSkippable(err)) {
+              break outerGroq;
+          }
+        }
+      }
+    }
+  }
+
+  // ── PRIORITY 2: Google Gemini (Stable & High Limits) ──────────────────────
   if (!result && hasGemini) {
     const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash'];
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -125,7 +164,7 @@ export async function callAI(
     }
   }
 
-  // ── PRIORITY 2: Cerebras ──────────────────────────────────────────────────
+  // ── PRIORITY 3: Cerebras ──────────────────────────────────────────────────
   if (!result && hasCerebras) {
     const cerebrasModels = ['llama3.3-70b', 'llama3.1-8b'];
     for (const model of cerebrasModels) {
@@ -142,43 +181,7 @@ export async function callAI(
     }
   }
 
-  // ── PRIORITY 3: Groq key pool ─────────────────────────────────────────────
-  if (!result && hasGroq) {
-    const GROQ_MODELS = [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-    ];
-    outerGroq: for (const apiKey of GROQ_KEYS) {
-      const groqClient = new Groq({ apiKey });
-      for (const model of GROQ_MODELS) {
-        try {
-          const c = await groqClient.chat.completions.create({
-            model,
-            max_tokens: maxTok > 8000 ? 8000 : maxTok, 
-            temperature: 0.7,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-          });
-          const text = c.choices[0]?.message?.content ?? '';
-          if (text) {
-            result = text;
-            break outerGroq;
-          }
-        } catch (err: any) {
-          const reason = `Groq ${model} failed: ${err?.message?.slice(0, 150)}`;
-          console.warn(`[${callLabel}] ${reason}`);
-          failReasons.push(reason);
-          if (!isSkippable(err)) {
-              break outerGroq;
-          }
-        }
-      }
-    }
-  }
-
-  // ── PRIORITY 4: OpenRouter ────────────────────────────────────────────────
+  // ── PRIORITY 4: OpenRouter (Free Tier Fallbacks) ──────────────────────────
   if (!result && hasOpenRouter) {
     for (const model of [
       'google/gemini-2.0-flash-lite-preview-02-05:free',
@@ -202,8 +205,7 @@ export async function callAI(
     }
   }
 
-  // 🔴 THIS IS THE MAGIC FIX 🔴
-  // Instead of a generic error, we force the actual API errors to show on your screen/logs!
+  // ── ERROR HANDLING ────────────────────────────────────────────────────────
   if (!result) {
     const debugOutput = failReasons.map(r => r.replace(/\n/g, ' ')).join(' || ');
     console.error(`[${callLabel}] FATAL: ${debugOutput}`);
