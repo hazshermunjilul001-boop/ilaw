@@ -50,6 +50,7 @@ export async function POST(req: Request) {
       groq: `${GROQ_KEYS.length} keys`,
       gemini: `${GEMINI_KEYS.length} keys`,
       geminiKey1Preview: GEMINI_KEYS[0]?.slice(-6) ?? 'MISSING',
+      geminiKeyLength: GEMINI_KEYS[0]?.length ?? 0,
       cerebras: hasCerebras,
       openRouter: hasOpenRouter,
     });
