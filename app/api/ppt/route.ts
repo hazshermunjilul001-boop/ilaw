@@ -1,134 +1,23 @@
 // app/api/ppt/route.ts
 // Server-side only — generates student-facing PowerPoint from LP content.
-// Makes ONE AI call to transform teacher-facing LP content into student-facing
-// slide content, then passes that to buildPptx.ts for rendering.
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 import { buildPptxBuffer } from '../../../lib/buildPptx';
+import { callAI } from '../../../lib/callAI';
 
-// ── AI providers (same pattern as generate/route.ts) ─────────────────────────
-const GROQ_KEYS = [
-  process.env.GROQ_API_KEY,
-  process.env.GROQ_API_KEY_2,
-  process.env.GROQ_API_KEY_3,
-].filter((k): k is string => !!k);
-
-const hasGroq       = GROQ_KEYS.length > 0;
-const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-const hasMistral    = !!process.env.MISTRAL_API_KEY;
-const hasCerebras   = !!process.env.CEREBRAS_API_KEY;
-
-async function callAI(systemPrompt: string, userPrompt: string, label: string): Promise<string> {
-  let result: string | null = null;
-
-  // ── Helper: call any OpenAI-compatible REST endpoint ──────────────────────
-  async function tryProvider(
-    providerLabel: string,
-    url: string,
-    authHeader: string,
-    model: string,
-    extraHeaders: Record<string, string> = {},
-  ): Promise<string | null> {
-    try {
-      console.log(`[${label}] Trying ${providerLabel} (${model})...`);
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json', ...extraHeaders },
-        body: JSON.stringify({
-          model,
-          max_tokens: 6000,
-          temperature: 0.7,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        console.warn(`[${label}] ${providerLabel} ${response.status}: ${errText.slice(0, 200)}`);
-        return null;
-      }
-      const data = await response.json();
-      const text: string = data.choices?.[0]?.message?.content ?? '';
-      if (!text) { console.warn(`[${label}] ${providerLabel} empty content`); return null; }
-      console.log(`[${label}] ${providerLabel} success! Chars: ${text.length}`);
-      return text;
-    } catch (err: any) {
-      console.error(`[${label}] ${providerLabel} exception: ${err?.message}`);
-      return null;
-    }
-  }
-
-  // ── Groq ──────────────────────────────────────────────────────────────────
-  if (!result && hasGroq) {
-    const MODELS = [
-      'meta-llama/llama-4-scout-17b-16e-instruct',
-      'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
-    ];
-    outer:
-    for (const key of GROQ_KEYS) {
-      for (const model of MODELS) {
-        const text = await tryProvider(`Groq/${model}`,
-          'https://api.groq.com/openai/v1/chat/completions',
-          `Bearer ${key}`, model);
-        if (text) { result = text; break outer; }
-      }
-    }
-  }
-
-  // ── OpenRouter ────────────────────────────────────────────────────────────
-  if (!result && hasOpenRouter) {
-    for (const model of ['google/gemini-2.5-flash', 'google/gemini-2.5-pro', 'meta-llama/llama-3.3-70b-instruct']) {
-      const text = await tryProvider(`OpenRouter/${model}`,
-        'https://openrouter.ai/api/v1/chat/completions',
-        `Bearer ${process.env.OPENROUTER_API_KEY}`, model,
-        { 'HTTP-Referer': 'https://ilaw.vercel.app', 'X-Title': 'ILAW PPT Generator' });
-      if (text) { result = text; break; }
-    }
-  }
-
-  // ── Mistral ───────────────────────────────────────────────────────────────
-  if (!result && hasMistral) {
-    for (const model of ['mistral-large-latest', 'mistral-small-latest']) {
-      const text = await tryProvider(`Mistral/${model}`,
-        'https://api.mistral.ai/v1/chat/completions',
-        `Bearer ${process.env.MISTRAL_API_KEY}`, model);
-      if (text) { result = text; break; }
-    }
-  }
-
-  // ── Cerebras ──────────────────────────────────────────────────────────────
-  if (!result && hasCerebras) {
-    for (const model of ['llama-3.3-70b', 'llama3.3-70b']) {
-      const text = await tryProvider(`Cerebras/${model}`,
-        'https://api.cerebras.ai/v1/chat/completions',
-        `Bearer ${process.env.CEREBRAS_API_KEY}`, model);
-      if (text) { result = text; break; }
-    }
-  }
-
-  if (!result) throw new Error('All AI providers unavailable. Please try again in a few minutes.');
-  return result;
-}
-
-// ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
 const SYSTEM = `You are an expert DepEd Philippines classroom presentation designer.
 Your job is to transform a teacher's ILAW Lesson Plan into student-facing PowerPoint slide content.
 
 CRITICAL RULES:
 - Write EVERYTHING from the student's perspective — what THEY see on the projector screen.
-- NEVER include teacher instructions, scripts, or LP labels (no "Teacher instructions:", no "For All Learners:", no "Procedure:", no "Session Divider", no "A", "B", "C" badge labels).
+- NEVER include teacher instructions, scripts, or LP labels.
 - Use simple, clear, student-friendly language. Short sentences. Direct.
 - For objectives: rephrase as "By the end of today, you will be able to..." statements.
 - For examples: show the COMPLETE step-by-step solution on the slide, not a description of it.
 - For activities: write the exact student task/question they need to answer.
-- For assessments: write the actual question or problem students will solve.
-- For the hook/opener: write an engaging question or surprising fact that grabs attention.
 - Include actual numbers, equations, and Davao City contexts from the LP.
 - Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.`;
 
@@ -143,9 +32,6 @@ export async function POST(req: Request) {
 
     const sessionCount = parseInt(sessions) || 3;
 
-    // ── Build the transformation prompt ──────────────────────────────────────
-    // We ask the AI to produce structured JSON for each session's slides.
-    // This gives buildPptx.ts clean, typed data to render — no parsing needed.
     const userPrompt = `Here is a complete ILAW Lesson Plan. Transform it into student-facing PowerPoint slide content for ${sessionCount} session(s).
 
 LESSON PLAN CONTENT:
@@ -163,7 +49,7 @@ OUTPUT FORMAT — respond with ONLY valid JSON, no markdown, no explanation:
         "By the end of today, you will be able to [action] (max 20 words)"
       ],
       "warmUpTitle": "Name of the warm-up activity (max 6 words)",
-      "warmUpTask": "The exact instruction students read on the slide. What do they DO? (max 40 words)",
+      "warmUpTask": "The exact instruction students read on the slide (max 40 words)",
       "warmUpQuestion": "The specific question or problem students answer during warm-up (max 30 words)",
       "conceptTitle": "The main concept name (max 6 words)",
       "conceptDefinition": "Clear, simple definition students can understand (max 35 words)",
@@ -219,15 +105,13 @@ OUTPUT FORMAT — respond with ONLY valid JSON, no markdown, no explanation:
   ]
 }
 
-Generate exactly ${sessionCount} session(s) in the sessions array. Use actual numbers, equations, and Davao City contexts from the lesson plan.`;
+Generate exactly ${sessionCount} session(s) in the sessions array.`;
 
     console.log(`[PPT] Calling AI to transform LP into student-facing slide content...`);
-    const aiResponse = await callAI(SYSTEM, userPrompt, 'PPT-TRANSFORM');
+    const aiResponse = await callAI(SYSTEM, userPrompt, 'PPT-TRANSFORM', 6000);
 
-    // ── Parse AI JSON response ────────────────────────────────────────────────
     let slideData: any;
     try {
-      // Strip any accidental markdown fences
       const clean = aiResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
       slideData = JSON.parse(clean);
     } catch (parseErr) {
@@ -240,7 +124,6 @@ Generate exactly ${sessionCount} session(s) in the sessions array. Use actual nu
 
     console.log(`[PPT] Slide data parsed. Sessions: ${slideData.sessions?.length}`);
 
-    // ── Build the PPTX ────────────────────────────────────────────────────────
     const buffer = await buildPptxBuffer(
       slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount
     );

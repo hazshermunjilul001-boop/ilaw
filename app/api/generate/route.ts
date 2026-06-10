@@ -560,11 +560,10 @@ EXTENDED_LEARNING
 
     // ── Run all 4 calls in PARALLEL ───────────────────────────────────────────
     console.log('Starting 4 parallel calls: A(Header) B(PreLesson) C(Flow+Resources+Integration) D(Assessment+ExtendedLearning)');
-    const [partA, partB, partC, partD] = await Promise.all([
-      callAIWithRetry(promptA, 'A-HEADER'),
-      callAIWithRetry(promptB, 'B-PRELESSON'),
-      callAIWithRetry(promptC, 'C-FLOW'),
-      callAIWithRetry(promptD, 'D-ASSESSMENT'),
+    const partA = await callAIWithRetry(promptA, 'A-HEADER');
+    const partB = await callAIWithRetry(promptB, 'B-PRELESSON');
+    const partC = await callAIWithRetry(promptC, 'C-FLOW');
+    const partD = await callAIWithRetry(promptD, 'D-ASSESSMENT');
     ]);
 
     console.log(`A: ${partA.length} | B: ${partB.length} | C: ${partC.length} | D: ${partD.length}`);

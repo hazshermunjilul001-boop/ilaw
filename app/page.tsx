@@ -31,6 +31,8 @@ export default function Home() {
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
+  // REPLACE the handleGenerate function in page.tsx (lines 34–116) with this:
+
   const handleGenerate = async () => {
     setLoading(true);
     setStatus('generating');
@@ -41,44 +43,46 @@ export default function Home() {
     }, 7000);
 
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      // ── 3 sequential API calls — each fits within Vercel Hobby 60s limit ──
+      setLoadingMessage('🤖 Writing references, objectives, and learner context...');
+      const [resA, resFlow, resD] = await Promise.all([
+        fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
+        fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
+        fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
+      ]);
 
-      // Guard: if Vercel times out or crashes it returns an HTML error page,
-      // not JSON — parse it safely and show a helpful message instead of
-      // "Unexpected token 'A'" or similar cryptic JSON parse errors.
-      const rawText = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        // Not JSON — likely a Vercel timeout (504) or cold-start HTML error page
-        if (res.status === 504 || res.status === 408) {
-          throw new Error('The request timed out. All AI providers are currently rate-limited. Please try again in a few minutes.');
+      // Parse all three responses
+      async function parseRes(res: Response, label: string) {
+        const rawText = await res.text();
+        let data: any = {};
+        try { data = JSON.parse(rawText); } catch {
+          if (!res.ok) throw new Error(`${label} server error (${res.status}). Please try again.`);
+          throw new Error(`Unexpected response from ${label}. Please try again.`);
         }
-        if (!res.ok) {
-          throw new Error(`Server error (${res.status}). Please try again in a few minutes.`);
-        }
-        throw new Error('Unexpected response from server. Please try again.');
+        if (data.error) throw new Error(data.error);
+        if (!data.content) throw new Error(`No content returned from ${label}. Please try again.`);
+        return data.content as string;
       }
-      if (data.error) throw new Error(data.error);
-      if (!data.content) throw new Error('No content returned from AI. Please try again.');
 
-      // Save content to state so the Generate Slides button can use it
-      setGeneratedContent(data.content);
+      const [partA, partBC, partD] = await Promise.all([
+        parseRes(resA,    'A-HEADER'),
+        parseRes(resFlow, 'B+C-FLOW'),
+        parseRes(resD,    'D-ASSESSMENT'),
+      ]);
 
-      console.log('RAW CONTENT PREVIEW:', data.content.substring(0, 2000));
+      const combinedContent = [partA, partBC, partD].join('\n\n');
+      setGeneratedContent(combinedContent);
 
-      // Call the server-side download route — buildDocx runs on the server
-      // so the `docx` Node.js package never gets bundled into the browser.
+      console.log('RAW CONTENT PREVIEW:', combinedContent.substring(0, 2000));
+
+      setLoadingMessage('🌱 Almost done — finalizing your DOCX...');
+
+      // Call the server-side download route
       const dlRes = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: data.content,
+          content: combinedContent,
           teacherName: form.teacherName,
           lessonName: form.lessonName,
           learningArea: form.learningArea,
@@ -92,7 +96,6 @@ export default function Home() {
         throw new Error(errData.error || 'Failed to generate DOCX');
       }
 
-      // Trigger browser download from the binary response
       const blob = await dlRes.blob();
       const safeName = form.lessonName
         ? form.lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
