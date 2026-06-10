@@ -49,6 +49,7 @@ export async function POST(req: Request) {
     console.log('Providers available:', {
       groq: `${GROQ_KEYS.length} keys`,
       gemini: `${GEMINI_KEYS.length} keys`,
+      geminiKey1Preview: GEMINI_KEYS[0]?.slice(-6) ?? 'MISSING',
       cerebras: hasCerebras,
       openRouter: hasOpenRouter,
     });
