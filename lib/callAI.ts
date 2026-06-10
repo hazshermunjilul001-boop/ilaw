@@ -2,6 +2,7 @@
 // Shared AI provider fallback chain used by all generate sub-routes and ppt route.
 import Groq from 'groq-sdk';
 
+// Added .map(k => k?.trim()) to fix accidental spaces in Vercel Environment Variables
 export const GROQ_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
@@ -10,7 +11,7 @@ export const GROQ_KEYS = [
   process.env.GROQ_API_KEY_5,
   process.env.GROQ_API_KEY_6,
   process.env.GROQ_API_KEY_7,
-].filter((k): k is string => !!k);
+].map(k => k?.trim()).filter((k): k is string => !!k);
 
 export const GEMINI_KEYS = [
   process.env.GOOGLE_AI_KEY,
@@ -18,7 +19,7 @@ export const GEMINI_KEYS = [
   process.env.GOOGLE_AI_KEY_3,
   process.env.GOOGLE_AI_KEY_4,
   process.env.GOOGLE_AI_KEY_5,
-].filter((k): k is string => !!k);
+].map(k => k?.trim()).filter((k): k is string => !!k);
 
 console.log('[callAI] Module loaded. GEMINI_KEYS:', GEMINI_KEYS.length, 'GROQ_KEYS:', GROQ_KEYS.length);
 
@@ -51,8 +52,7 @@ export async function callAI(
   const hasGemini = GEMINI_KEYS.length > 0;
 
   if (!hasGemini && !hasGroq && !hasCerebras && !hasOpenRouter) {
-    console.error(`[${callLabel}] CRITICAL ERROR: No API keys found in Environment Variables.`);
-    throw new Error('Server Error: Missing AI API Keys. Please check Vercel Environment Variables.');
+    throw new Error('CRITICAL ERROR: No AI API Keys found. Please check Vercel Environment Variables.');
   }
 
   async function tryProvider(
@@ -84,7 +84,8 @@ export async function callAI(
 
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
-        const reason = `${label} → HTTP ${response.status}: ${errText.slice(0, 200)}`;
+        // Clean up formatting for the frontend debug message
+        const reason = `${label} failed (${response.status}): ${errText.slice(0, 150)}`;
         console.warn(`[${callLabel}] ${reason}`);
         failReasons.push(reason);
         return null;
@@ -94,14 +95,14 @@ export async function callAI(
       const text: string = data.choices?.[0]?.message?.content ?? '';
 
       if (!text) {
-        failReasons.push(`${label} → empty response`);
+        failReasons.push(`${label} returned an empty response`);
         return null;
       }
 
-      console.log(`[${callLabel}] ${label} success! Chars: ${text.length}`);
+      console.log(`[${callLabel}] ${label} success!`);
       return text;
     } catch (err: any) {
-      const reason = `${label} → exception: ${err?.message}`;
+      const reason = `${label} exception: ${err?.message}`;
       console.error(`[${callLabel}] ${reason}`);
       failReasons.push(reason);
       return null;
@@ -126,13 +127,12 @@ export async function callAI(
 
   // ── PRIORITY 2: Cerebras ──────────────────────────────────────────────────
   if (!result && hasCerebras) {
-    // FIX: Removed the hyphen in Llama 3.3 to match Cerebras API specs. Also added 3.1 8b as fallback.
     const cerebrasModels = ['llama3.3-70b', 'llama3.1-8b'];
     for (const model of cerebrasModels) {
       const text = await tryProvider(
         `Cerebras/${model}`,
         'https://api.cerebras.ai/v1/chat/completions',
-        `Bearer ${process.env.CEREBRAS_API_KEY}`,
+        `Bearer ${process.env.CEREBRAS_API_KEY?.trim()}`,
         model,
       );
       if (text) {
@@ -152,7 +152,6 @@ export async function callAI(
       const groqClient = new Groq({ apiKey });
       for (const model of GROQ_MODELS) {
         try {
-          console.log(`[${callLabel}] Groq key ...${apiKey.slice(-4)} | model: ${model}`);
           const c = await groqClient.chat.completions.create({
             model,
             max_tokens: maxTok > 8000 ? 8000 : maxTok, 
@@ -164,12 +163,11 @@ export async function callAI(
           });
           const text = c.choices[0]?.message?.content ?? '';
           if (text) {
-            console.log(`[${callLabel}] Groq success: ${model} | chars: ${text.length}`);
             result = text;
             break outerGroq;
           }
         } catch (err: any) {
-          const reason = `Groq ...${apiKey.slice(-4)}/${model} → ${err?.message?.slice(0, 120)}`;
+          const reason = `Groq ${model} failed: ${err?.message?.slice(0, 150)}`;
           console.warn(`[${callLabel}] ${reason}`);
           failReasons.push(reason);
           if (!isSkippable(err)) {
@@ -182,17 +180,15 @@ export async function callAI(
 
   // ── PRIORITY 4: OpenRouter ────────────────────────────────────────────────
   if (!result && hasOpenRouter) {
-    // Added more free models in case others are busy
     for (const model of [
       'google/gemini-2.0-flash-lite-preview-02-05:free',
       'meta-llama/llama-3.3-70b-instruct:free',
       'qwen/qwen-2.5-72b-instruct:free',
-      'mistralai/mistral-nemo:free',
     ]) {
       const text = await tryProvider(
         `OpenRouter/${model}`,
         'https://openrouter.ai/api/v1/chat/completions',
-        `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        `Bearer ${process.env.OPENROUTER_API_KEY?.trim()}`,
         model,
         {
           'HTTP-Referer': 'https://ilawlpgenerator.vercel.app',
@@ -206,9 +202,12 @@ export async function callAI(
     }
   }
 
+  // 🔴 THIS IS THE MAGIC FIX 🔴
+  // Instead of a generic error, we force the actual API errors to show on your screen/logs!
   if (!result) {
-    console.error(`[${callLabel}] ALL PROVIDERS FAILED:\n${failReasons.join('\n')}`);
-    throw new Error('Lahat ng AI providers ay abala / All AI providers are currently busy. Please try again in 5–10 minutes.');
+    const debugOutput = failReasons.map(r => r.replace(/\n/g, ' ')).join(' || ');
+    console.error(`[${callLabel}] FATAL: ${debugOutput}`);
+    throw new Error(`Generation failed! DEBUG INFO: ${debugOutput}`);
   }
 
   return result;
