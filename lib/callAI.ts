@@ -50,6 +50,11 @@ export async function callAI(
   const hasCerebras = !!process.env.CEREBRAS_API_KEY;
   const hasGemini = GEMINI_KEYS.length > 0;
 
+  if (!hasGemini && !hasGroq && !hasCerebras && !hasOpenRouter) {
+    console.error(`[${callLabel}] CRITICAL ERROR: No API keys found in Environment Variables.`);
+    throw new Error('Server Error: Missing AI API Keys. Please check Vercel Environment Variables.');
+  }
+
   async function tryProvider(
     label: string,
     url: string,
@@ -105,8 +110,7 @@ export async function callAI(
 
   // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
   if (!result && hasGemini) {
-    // gemini-2.5-flash doesn't exist yet. Replaced with official fast models.
-    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash'];
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
     for (const apiKey of GEMINI_KEYS) {
       for (const model of geminiModels) {
@@ -122,13 +126,20 @@ export async function callAI(
 
   // ── PRIORITY 2: Cerebras ──────────────────────────────────────────────────
   if (!result && hasCerebras) {
-    const text = await tryProvider(
-      'Cerebras/llama-3.3-70b',
-      'https://api.cerebras.ai/v1/chat/completions',
-      `Bearer ${process.env.CEREBRAS_API_KEY}`,
-      'llama-3.3-70b',
-    );
-    if (text) result = text;
+    // FIX: Removed the hyphen in Llama 3.3 to match Cerebras API specs. Also added 3.1 8b as fallback.
+    const cerebrasModels = ['llama3.3-70b', 'llama3.1-8b'];
+    for (const model of cerebrasModels) {
+      const text = await tryProvider(
+        `Cerebras/${model}`,
+        'https://api.cerebras.ai/v1/chat/completions',
+        `Bearer ${process.env.CEREBRAS_API_KEY}`,
+        model,
+      );
+      if (text) {
+        result = text;
+        break;
+      }
+    }
   }
 
   // ── PRIORITY 3: Groq key pool ─────────────────────────────────────────────
@@ -144,7 +155,6 @@ export async function callAI(
           console.log(`[${callLabel}] Groq key ...${apiKey.slice(-4)} | model: ${model}`);
           const c = await groqClient.chat.completions.create({
             model,
-            // Cap max_tokens at 8000 for Groq to avoid hard limits dropping the request
             max_tokens: maxTok > 8000 ? 8000 : maxTok, 
             temperature: 0.7,
             messages: [
@@ -162,7 +172,9 @@ export async function callAI(
           const reason = `Groq ...${apiKey.slice(-4)}/${model} → ${err?.message?.slice(0, 120)}`;
           console.warn(`[${callLabel}] ${reason}`);
           failReasons.push(reason);
-          if (!isSkippable(err)) throw err;
+          if (!isSkippable(err)) {
+              break outerGroq;
+          }
         }
       }
     }
@@ -170,9 +182,11 @@ export async function callAI(
 
   // ── PRIORITY 4: OpenRouter ────────────────────────────────────────────────
   if (!result && hasOpenRouter) {
+    // Added more free models in case others are busy
     for (const model of [
-      'google/gemini-2.0-flash-lite-preview-02-05:free', // Great free model addition for speed
+      'google/gemini-2.0-flash-lite-preview-02-05:free',
       'meta-llama/llama-3.3-70b-instruct:free',
+      'qwen/qwen-2.5-72b-instruct:free',
       'mistralai/mistral-nemo:free',
     ]) {
       const text = await tryProvider(
