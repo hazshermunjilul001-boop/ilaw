@@ -46,12 +46,23 @@ export async function callAI(
   let result: string | null = null;
   const failReasons: string[] = [];
 
+  // FIX: Handle "Request too large" (413) by truncating the prompt if it is massive.
+  // The smaller models (8b) often crash on long inputs.
+  let safeUserPrompt = userPrompt;
+  if (safeUserPrompt.length > 4000) {
+    console.warn(`[${callLabel}] Input too long (${safeUserPrompt.length} chars). Truncating to 4000 to prevent 413 errors.`);
+    safeUserPrompt = safeUserPrompt.slice(0, 4000) + "... [Input Truncated]";
+  }
+
   const hasGroq = GROQ_KEYS.length > 0;
-  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-  const hasCerebras = !!process.env.CEREBRAS_API_KEY;
   const hasGemini = GEMINI_KEYS.length > 0;
 
-  if (!hasGemini && !hasGroq && !hasCerebras && !hasOpenRouter) {
+  // We temporarily disabled Cerebras and OpenRouter because your logs showed 
+  // they were returning 404 (Model Not Found) and 400 (Invalid ID) errors.
+  // const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+  // const hasCerebras = !!process.env.CEREBRAS_API_KEY;
+
+  if (!hasGemini && !hasGroq) {
     throw new Error('CRITICAL ERROR: No AI API Keys found. Please check Vercel Environment Variables.');
   }
 
@@ -77,7 +88,7 @@ export async function callAI(
           temperature: 0.7,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
+            { role: 'user', content: safeUserPrompt }, // Use safe truncated prompt
           ],
         }),
       });
@@ -111,8 +122,8 @@ export async function callAI(
   // ── PRIORITY 1: Groq key pool (Fastest) ───────────────────────────────────
   if (!result && hasGroq) {
     const GROQ_MODELS = [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
+      'llama-3.3-70b-versatile', // Priority 1: Smartest
+      'llama-3.1-8b-instant',    // Priority 2: Faster, but smaller context
     ];
     outerGroq: for (const apiKey of GROQ_KEYS) {
       const groqClient = new Groq({ apiKey });
@@ -126,7 +137,7 @@ export async function callAI(
             temperature: 0.7,
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
+              { role: 'user', content: safeUserPrompt }, // Use safe truncated prompt
             ],
           });
           const text = c.choices[0]?.message?.content ?? '';
@@ -150,7 +161,8 @@ export async function callAI(
 
   // ── PRIORITY 2: Google Gemini (Stable & High Limits) ──────────────────────
   if (!result && hasGemini) {
-    const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Note: Ensure you are using the OpenAI-compatible endpoint for Gemini
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
     for (const apiKey of GEMINI_KEYS) {
       for (const model of geminiModels) {
@@ -164,9 +176,12 @@ export async function callAI(
     }
   }
 
-  // ── PRIORITY 3: Cerebras ──────────────────────────────────────────────────
+  // ── PRIORITY 3: Cerebras (DISABLED) ───────────────────────────────────────
+  // DISABLED: Logs showed "Model llama-3.3-70b does not exist (404)".
+  // If you re-enable, ensure model names match current Cerebras API docs.
+  /*
   if (!result && hasCerebras) {
-    const cerebrasModels = ['llama3.3-70b', 'llama3.1-8b'];
+    const cerebrasModels = ['llama3.1-70b']; // Updated to stable model name
     for (const model of cerebrasModels) {
       const text = await tryProvider(
         `Cerebras/${model}`,
@@ -180,13 +195,16 @@ export async function callAI(
       }
     }
   }
+  */
 
-  // ── PRIORITY 4: OpenRouter (Free Tier Fallbacks) ──────────────────────────
+  // ── PRIORITY 4: OpenRouter (DISABLED) ─────────────────────────────────────
+  // DISABLED: Logs showed "not a valid model ID (400)" and "unavailable for free (404)".
+  // Free OpenRouter models are often unstable.
+  /*
   if (!result && hasOpenRouter) {
     for (const model of [
       'google/gemini-2.0-flash-lite-preview-02-05:free',
       'meta-llama/llama-3.3-70b-instruct:free',
-      'qwen/qwen-2.5-72b-instruct:free',
     ]) {
       const text = await tryProvider(
         `OpenRouter/${model}`,
@@ -204,6 +222,7 @@ export async function callAI(
       }
     }
   }
+  */
 
   // ── ERROR HANDLING ────────────────────────────────────────────────────────
   if (!result) {
