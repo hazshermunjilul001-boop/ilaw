@@ -1,6 +1,5 @@
 // lib/callAI.ts
 // Shared AI provider fallback chain used by all generate sub-routes and ppt route.
-
 import Groq from 'groq-sdk';
 
 export const GROQ_KEYS = [
@@ -46,10 +45,10 @@ export async function callAI(
   let result: string | null = null;
   const failReasons: string[] = [];
 
-  const hasGroq       = GROQ_KEYS.length > 0;
+  const hasGroq = GROQ_KEYS.length > 0;
   const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-  const hasCerebras   = !!process.env.CEREBRAS_API_KEY;
-  const hasGemini     = GEMINI_KEYS.length > 0;
+  const hasCerebras = !!process.env.CEREBRAS_API_KEY;
+  const hasGemini = GEMINI_KEYS.length > 0;
 
   async function tryProvider(
     label: string,
@@ -62,17 +61,22 @@ export async function callAI(
       console.log(`[${callLabel}] Trying ${label}...`);
       const response = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: authHeader, 'Content-Type': 'application/json', ...extraHeaders },
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+          ...extraHeaders
+        },
         body: JSON.stringify({
           model,
           max_tokens: maxTok,
           temperature: 0.7,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user',   content: userPrompt },
+            { role: 'user', content: userPrompt },
           ],
         }),
       });
+
       if (!response.ok) {
         const errText = await response.text().catch(() => '');
         const reason = `${label} → HTTP ${response.status}: ${errText.slice(0, 200)}`;
@@ -80,12 +84,15 @@ export async function callAI(
         failReasons.push(reason);
         return null;
       }
+
       const data = await response.json();
       const text: string = data.choices?.[0]?.message?.content ?? '';
+
       if (!text) {
         failReasons.push(`${label} → empty response`);
         return null;
       }
+
       console.log(`[${callLabel}] ${label} success! Chars: ${text.length}`);
       return text;
     } catch (err: any) {
@@ -98,19 +105,22 @@ export async function callAI(
 
   // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
   if (!result && hasGemini) {
-    const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
+    // gemini-2.5-flash doesn't exist yet. Replaced with official fast models.
+    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
     for (const apiKey of GEMINI_KEYS) {
       for (const model of geminiModels) {
         const text = await tryProvider(`Gemini/${model}`, endpoint, `Bearer ${apiKey}`, model);
-        if (text) { result = text; break; }
+        if (text) {
+          result = text;
+          break;
+        }
       }
       if (result) break;
     }
   }
 
   // ── PRIORITY 2: Cerebras ──────────────────────────────────────────────────
-  // NOTE: llama-3.1-8b removed — returns 404. Only llama-3.3-70b is valid.
   if (!result && hasCerebras) {
     const text = await tryProvider(
       'Cerebras/llama-3.3-70b',
@@ -124,21 +134,22 @@ export async function callAI(
   // ── PRIORITY 3: Groq key pool ─────────────────────────────────────────────
   if (!result && hasGroq) {
     const GROQ_MODELS = [
-      'meta-llama/llama-4-scout-17b-16e-instruct',
       'llama-3.3-70b-versatile',
       'llama-3.1-8b-instant',
     ];
-    outerGroq:
-    for (const apiKey of GROQ_KEYS) {
+    outerGroq: for (const apiKey of GROQ_KEYS) {
       const groqClient = new Groq({ apiKey });
       for (const model of GROQ_MODELS) {
         try {
           console.log(`[${callLabel}] Groq key ...${apiKey.slice(-4)} | model: ${model}`);
           const c = await groqClient.chat.completions.create({
-            model, max_tokens: maxTok, temperature: 0.7,
+            model,
+            // Cap max_tokens at 8000 for Groq to avoid hard limits dropping the request
+            max_tokens: maxTok > 8000 ? 8000 : maxTok, 
+            temperature: 0.7,
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user',   content: userPrompt },
+              { role: 'user', content: userPrompt },
             ],
           });
           const text = c.choices[0]?.message?.content ?? '';
@@ -160,18 +171,24 @@ export async function callAI(
   // ── PRIORITY 4: OpenRouter ────────────────────────────────────────────────
   if (!result && hasOpenRouter) {
     for (const model of [
+      'google/gemini-2.0-flash-lite-preview-02-05:free', // Great free model addition for speed
       'meta-llama/llama-3.3-70b-instruct:free',
       'mistralai/mistral-nemo:free',
-      'google/gemma-3-12b-it:free',
     ]) {
       const text = await tryProvider(
         `OpenRouter/${model}`,
         'https://openrouter.ai/api/v1/chat/completions',
         `Bearer ${process.env.OPENROUTER_API_KEY}`,
         model,
-        { 'HTTP-Referer': 'https://ilawlpgenerator.vercel.app', 'X-Title': 'ILAW LP Generator' },
+        {
+          'HTTP-Referer': 'https://ilawlpgenerator.vercel.app',
+          'X-Title': 'ILAW LP Generator'
+        },
       );
-      if (text) { result = text; break; }
+      if (text) {
+        result = text;
+        break;
+      }
     }
   }
 
@@ -179,5 +196,6 @@ export async function callAI(
     console.error(`[${callLabel}] ALL PROVIDERS FAILED:\n${failReasons.join('\n')}`);
     throw new Error('Lahat ng AI providers ay abala / All AI providers are currently busy. Please try again in 5–10 minutes.');
   }
+
   return result;
 }

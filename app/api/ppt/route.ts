@@ -1,5 +1,6 @@
 // app/api/ppt/route.ts
 // Server-side only — generates student-facing PowerPoint from LP content.
+// FIX: AI call is now split per-session to avoid JSON truncation on large outputs.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -21,6 +22,103 @@ CRITICAL RULES:
 - Include actual numbers, equations, and Davao City contexts from the LP.
 - Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.`;
 
+function buildSessionPrompt(
+  content: string,
+  sessionNum: number,
+  sessionCount: number,
+): string {
+  return `Here is a complete ILAW Lesson Plan. Transform Session ${sessionNum} of ${sessionCount} into student-facing PowerPoint slide content.
+
+LESSON PLAN CONTENT:
+${content.slice(0, 10000)}
+
+Focus on Session ${sessionNum}. Output ONLY valid JSON for this single session object (no array wrapper, no lessonHook):
+{
+  "sessionNum": ${sessionNum},
+  "sessionTitle": "Short student-friendly session title (max 8 words)",
+  "objectives": [
+    "By the end of today, you will be able to [action] (max 20 words)",
+    "By the end of today, you will be able to [action] (max 20 words)"
+  ],
+  "warmUpTitle": "Name of the warm-up activity (max 6 words)",
+  "warmUpTask": "The exact instruction students read on the slide (max 40 words)",
+  "warmUpQuestion": "The specific question or problem students answer during warm-up (max 30 words)",
+  "conceptTitle": "The main concept name (max 6 words)",
+  "conceptDefinition": "Clear, simple definition students can understand (max 35 words)",
+  "conceptKeyPoints": [
+    "Key point 1 (max 15 words)",
+    "Key point 2 (max 15 words)",
+    "Key point 3 (max 15 words)"
+  ],
+  "example1": {
+    "title": "Example 1 title using Davao City context",
+    "problem": "The exact problem statement students see (max 25 words)",
+    "steps": [
+      "Step 1: [what to do] → [result]",
+      "Step 2: [what to do] → [result]",
+      "Step 3: [what to do] → [result]",
+      "Step 4: [what to do] → [final answer]"
+    ]
+  },
+  "example2": {
+    "title": "Example 2 title using a different Davao City context",
+    "problem": "The exact problem statement students see (max 25 words)",
+    "steps": [
+      "Step 1: [what to do] → [result]",
+      "Step 2: [what to do] → [result]",
+      "Step 3: [what to do] → [result]",
+      "Step 4: [what to do] → [final answer]"
+    ]
+  },
+  "tryItProblem": "Your Turn! — the exact problem students solve independently (max 30 words)",
+  "tryItHint": "A helpful hint for students who are stuck (max 20 words)",
+  "discussionQuestions": [
+    "Discussion question 1 for the whole class (max 20 words)",
+    "Discussion question 2 for the whole class (max 20 words)",
+    "Discussion question 3 for the whole class (max 20 words)"
+  ],
+  "activity": {
+    "title": "Student activity name (max 6 words)",
+    "instruction": "Exact instruction students read (max 35 words)",
+    "taskA": "Track A — For everyone: exact task (max 25 words)",
+    "taskB": "Track B — Need more help? Try this: exact simpler task (max 25 words)",
+    "taskC": "Track C — Challenge: exact harder task (max 25 words)"
+  },
+  "exitTicket": "The exact exit ticket question students answer on paper before leaving (max 25 words)",
+  "realLifeTitle": "Real-life connection title (max 6 words)",
+  "realLifeFact": "A specific, concrete real-world fact using actual Davao City data (max 35 words)",
+  "realLifeQuestion": "A question connecting the lesson to that real-world fact (max 20 words)",
+  "summaryPoints": [
+    "What we learned: key takeaway 1 (max 15 words)",
+    "What we learned: key takeaway 2 (max 15 words)",
+    "What we learned: key takeaway 3 (max 15 words)"
+  ]
+}`;
+}
+
+function buildHookPrompt(content: string): string {
+  return `Here is an ILAW Lesson Plan. Respond with ONLY a single JSON object, no markdown:
+{"lessonHook": "One surprising fact or question to open the presentation (max 25 words)"}
+
+LESSON PLAN CONTENT:
+${content.slice(0, 3000)}`;
+}
+
+function parseJson<T>(raw: string, label: string): T | null {
+  try {
+    const clean = raw
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON object found');
+    return JSON.parse(match[0]) as T;
+  } catch (e) {
+    console.error(`[PPT] JSON parse failed for ${label}. Raw: ${raw.slice(0, 300)}`);
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { content, teacherName, lessonName, learningArea, gradeSection, sessions } =
@@ -32,107 +130,38 @@ export async function POST(req: Request) {
 
     const sessionCount = parseInt(sessions) || 3;
 
-    const userPrompt = `Here is a complete ILAW Lesson Plan. Transform it into student-facing PowerPoint slide content for ${sessionCount} session(s).
+    // ── Call AI in parallel: one hook call + one call per session ──────────
+    console.log(`[PPT] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
 
-LESSON PLAN CONTENT:
-${content.slice(0, 12000)}
+    const hookPromise = callAI(SYSTEM, buildHookPrompt(content), 'PPT-HOOK', 200)
+      .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
+      .catch(() => null);
 
-OUTPUT FORMAT — respond with ONLY valid JSON, no markdown, no explanation:
-{
-  "lessonHook": "One surprising fact or question to open the presentation (max 25 words)",
-  "sessions": [
-    {
-      "sessionNum": 1,
-      "sessionTitle": "Short student-friendly session title (max 8 words)",
-      "objectives": [
-        "By the end of today, you will be able to [action] (max 20 words)",
-        "By the end of today, you will be able to [action] (max 20 words)"
-      ],
-      "warmUpTitle": "Name of the warm-up activity (max 6 words)",
-      "warmUpTask": "The exact instruction students read on the slide (max 40 words)",
-      "warmUpQuestion": "The specific question or problem students answer during warm-up (max 30 words)",
-      "conceptTitle": "The main concept name (max 6 words)",
-      "conceptDefinition": "Clear, simple definition students can understand (max 35 words)",
-      "conceptKeyPoints": [
-        "Key point 1 (max 15 words)",
-        "Key point 2 (max 15 words)",
-        "Key point 3 (max 15 words)"
-      ],
-      "example1": {
-        "title": "Example 1 title using Davao City context",
-        "problem": "The exact problem statement students see (max 25 words)",
-        "steps": [
-          "Step 1: [what to do] → [result]",
-          "Step 2: [what to do] → [result]",
-          "Step 3: [what to do] → [result]",
-          "Step 4: [what to do] → [final answer]"
-        ]
-      },
-      "example2": {
-        "title": "Example 2 title using a different Davao City context",
-        "problem": "The exact problem statement students see (max 25 words)",
-        "steps": [
-          "Step 1: [what to do] → [result]",
-          "Step 2: [what to do] → [result]",
-          "Step 3: [what to do] → [result]",
-          "Step 4: [what to do] → [final answer]"
-        ]
-      },
-      "tryItProblem": "Your Turn! — the exact problem students solve independently (max 30 words)",
-      "tryItHint": "A helpful hint for students who are stuck (max 20 words)",
-      "discussionQuestions": [
-        "Discussion question 1 for the whole class (max 20 words)",
-        "Discussion question 2 for the whole class (max 20 words)",
-        "Discussion question 3 for the whole class (max 20 words)"
-      ],
-      "activity": {
-        "title": "Student activity name (max 6 words)",
-        "instruction": "Exact instruction students read (max 35 words)",
-        "taskA": "Track A — For everyone: exact task (max 25 words)",
-        "taskB": "Track B — Need more help? Try this: exact simpler task (max 25 words)",
-        "taskC": "Track C — Challenge: exact harder task (max 25 words)"
-      },
-      "exitTicket": "The exact exit ticket question students answer on paper before leaving (max 25 words)",
-      "realLifeTitle": "Real-life connection title (max 6 words)",
-      "realLifeFact": "A specific, concrete real-world fact using actual Davao City data (max 35 words)",
-      "realLifeQuestion": "A question connecting the lesson to that real-world fact (max 20 words)",
-      "summaryPoints": [
-        "What we learned: key takeaway 1 (max 15 words)",
-        "What we learned: key takeaway 2 (max 15 words)",
-        "What we learned: key takeaway 3 (max 15 words)"
-      ]
-    }
-  ]
-}
+    const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
+      callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), `PPT-S${i + 1}`, 3000)
+        .then(raw => parseJson<any>(raw, `session${i + 1}`))
+        .catch(() => null),
+    );
 
-Generate exactly ${sessionCount} session(s) in the sessions array.`;
+    const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
 
-    console.log(`[PPT] Calling AI to transform LP into student-facing slide content...`);
-    const aiResponse = await callAI(SYSTEM, userPrompt, 'PPT-TRANSFORM', 6000);
-
-    let slideData: any;
-    try {
-      const clean = aiResponse
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/g, '')
-        .replace(/^\s*[\r\n]/gm, '')
-        .trim();
-      // Extract just the JSON object if there's text before/after
-      const jsonMatch = clean.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON found in response');
-      slideData = JSON.parse(jsonMatch[0]);
-    } catch (parseErr) {
-      console.error('[PPT] JSON parse failed. Raw response:', aiResponse.slice(0, 500));
+    // Check that at least session 1 succeeded
+    if (!sessionResults[0]) {
       return NextResponse.json(
-        { error: 'AI returned invalid slide data. Please try again.' },
-        { status: 500 }
+        { error: 'AI failed to generate slide content. Please try again.' },
+        { status: 500 },
       );
     }
 
-    console.log(`[PPT] Slide data parsed. Sessions: ${slideData.sessions?.length}`);
+    const slideData = {
+      lessonHook: hookData?.lessonHook ?? '',
+      sessions: sessionResults.map((s, i) => s ?? { sessionNum: i + 1 }),
+    };
+
+    console.log(`[PPT] Slide data ready. Sessions: ${slideData.sessions.length}`);
 
     const buffer = await buildPptxBuffer(
-      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount
+      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount,
     );
 
     const safeName = lessonName
@@ -151,7 +180,7 @@ Generate exactly ${sessionCount} session(s) in the sessions array.`;
     console.error('PPT ROUTE ERROR:', error?.message);
     return NextResponse.json(
       { error: error?.message || 'Failed to generate PowerPoint. Please try again.' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

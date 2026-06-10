@@ -493,7 +493,7 @@ export async function buildPptxBuffer(
   // ── Slide 1: Cover ──
   addCoverSlide(pres, lessonName, teacherName, learningArea, gradeSection, sessionCount, lessonHook);
 
-  // ── Per-session slides (15 slides per session: 1 divider + 14 content) ──
+  // ── Per-session slides (12 slides per session: 1 divider + 11 content) ──
   for (let i = 0; i < sessionCount; i++) {
     const s   = sessions[i] || {};
     const num = i + 1;
@@ -510,14 +510,6 @@ export async function buildPptxBuffer(
     addExitTicketSlide(pres, s, num, lessonName, teacherName);                      // 10
     addRealLifeSlide(pres, s, num, lessonName, teacherName);                        // 11
     addSummarySlide(pres, s, num, lessonName, teacherName);                         // 12
-    // Slides 13-15 = divider counts as 1, so we have 12 content + 1 divider = 13 per session.
-    // Adding 2 more content slides to reach 15:
-    // Slide 13: Second discussion/deeper question
-    addDiscussionSlide(pres, { ...s, discussionQuestions: (s.discussionQuestions || []).slice(1) }, num, lessonName, teacherName); // 13
-    // Slide 14: Try It Again (reuse tryIt with reversed hint visibility)
-    addTryItSlide(pres, { ...s, tryItProblem: s.example2?.problem || s.tryItProblem, tryItHint: '' }, num, lessonName, teacherName); // 14
-    // Slide 15: Real-life + summary bridge
-    addRealLifeSlide(pres, { ...s, realLifeQuestion: s.summaryPoints?.[0] || s.realLifeQuestion }, num, lessonName, teacherName); // 15
   }
 
   // ── Final closing slide ──
