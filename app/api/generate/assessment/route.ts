@@ -11,7 +11,8 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity } = body;
+    // ── CHANGE: Extract apiKey from the request body ───────────────────────
+    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
 GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
 COMPETENCY: ${competency}
 CLASSROOM: ${classroomDetails}
-${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
+ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
 
     const systemPrompt = `You are an expert DepEd Philippines ILAW lesson plan writer. Always follow these rules:
 • Write in ${lang}
@@ -67,7 +68,7 @@ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flash
     const prompt = `Write SECTION D of an ILAW lesson plan. Output ONLY these 2 sections in order, fully written. Never skip any session.
 Each section key must be on its OWN line alone.
 
-${lessonHeader}
+ ${lessonHeader}
 
 FORMATIVE_ASSESSMENT
 Write a complete entry for EVERY session listed in SESSIONS above:
@@ -98,7 +99,9 @@ Write a complete entry for EVERY session listed in SESSIONS above:
 **${L.remediation}:** One targeted re-teaching activity for students who did not meet the session objectives.
 **${L.family}:** One concrete suggestion for how families can support learning at home related to this topic.`;
 
-    const content = await callAI(systemPrompt, prompt, 'D-ASSESSMENT');
+    // ── CHANGE: Pass the apiKey to the callAI function ──────────────────────────
+    const content = await callAI(systemPrompt, prompt, apiKey, 'D-ASSESSMENT');
+    
     return NextResponse.json({ content });
   } catch (error: any) {
     console.error('ASSESSMENT ROUTE ERROR:', error?.message);

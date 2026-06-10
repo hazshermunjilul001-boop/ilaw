@@ -1,9 +1,10 @@
 // lib/callAI.ts
-// Optimized AI provider with Aggressive Truncation to prevent 413 errors.
+// Optimized for BYOK (Bring Your Own Key) strategy.
 import Groq from 'groq-sdk';
 
-// Automatically trim spaces from keys
-export const GROQ_KEYS = [
+// Server-side fallback keys.
+// These are ONLY used if the user does not provide their own key.
+export const SERVER_FALLBACK_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
   process.env.GROQ_API_KEY_3,
@@ -13,18 +14,34 @@ export const GROQ_KEYS = [
   process.env.GROQ_API_KEY_7,
 ].map(k => k?.trim()).filter((k): k is string => !!k);
 
-// Gemini keys are temporarily disabled to prevent 404/429 errors shown in logs.
-// export const GEMINI_KEYS = [ ... ];
-
-console.log('[callAI] Module loaded. GROQ_KEYS:', GROQ_KEYS.length);
+console.log('[callAI] Module loaded. SERVER_FALLBACK_KEYS:', SERVER_FALLBACK_KEYS.length);
 
 export async function callAI(
   systemPrompt: string,
   userPrompt: string,
+  userApiKey: string, // <--- NEW: Accepts the key from the frontend
   callLabel: string,
   maxTok = 8192,
 ): Promise<string> {
-  // ── FIX 1: AGGRESSIVE TRUNCATION ────────────────────────────────────────
+  
+  // ── STEP 1: BUILD KEY PRIORITY LIST ───────────────────────────────────────
+  // Priority 1: The User's Personal Key (Provided via UI)
+  // Priority 2: Server Keys (From .env file - Fallback only)
+  const keysToTry: string[] = [];
+  
+  if (userApiKey && userApiKey.trim() !== '') {
+    keysToTry.push(userApiKey.trim());
+  }
+
+  if (SERVER_FALLBACK_KEYS.length > 0) {
+    keysToTry.push(...SERVER_FALLBACK_KEYS);
+  }
+
+  if (keysToTry.length === 0) {
+    throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
+  }
+
+  // ── STEP 2: AGGRESSIVE TRUNCATION ────────────────────────────────────────
   // The 413 error happens because the combined prompt is too big for the 8b model.
   // We cut the System Prompt to 1500 chars and User Prompt to 2500 chars.
   const MAX_SYSTEM_CHARS = 1500;
@@ -42,19 +59,19 @@ export async function callAI(
     safeUserPrompt = safeUserPrompt.slice(0, MAX_USER_CHARS) + "...";
   }
 
-  if (GROQ_KEYS.length === 0) {
-    throw new Error('CRITICAL: No Groq API Keys found. Please add GROQ_API_KEY to your environment variables.');
-  }
-
-  // ── FIX 2: SIMPLIFIED GROQ LOGIC ─────────────────────────────────────────
-  // We only try Groq now. Gemini/Cerebras were causing 404/429 errors in your logs.
+  // ── STEP 3: EXECUTE GENERATION ─────────────────────────────────────────────
   const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
-  for (const apiKey of GROQ_KEYS) {
+  for (let i = 0; i < keysToTry.length; i++) {
+    const apiKey = keysToTry[i];
+    const isUserKey = (i === 0 && userApiKey);
+    const keySource = isUserKey ? "User Key" : "Server Backup Key";
+
     for (const model of models) {
       try {
+        console.log(`[${callLabel}] Trying ${model} via ${keySource} ...${apiKey.slice(-4)}`);
+
         const groqClient = new Groq({ apiKey });
-        console.log(`[${callLabel}] Attempting ${model} with key ending in ...${apiKey.slice(-4)}`);
 
         const completion = await groqClient.chat.completions.create({
           model,
@@ -68,34 +85,43 @@ export async function callAI(
 
         const content = completion.choices[0]?.message?.content;
         if (content) {
-          console.log(`[${callLabel}] SUCCESS via ${model}`);
+          console.log(`[${callLabel}] SUCCESS via ${model} (${keySource})`);
           return content;
         }
       } catch (err: any) {
         const status = err?.status;
         const message = err?.message;
 
-        // Handle specific errors
+        // STRATEGY: Handle errors based on type
+        
+        // 1. Invalid Key (401): Don't retry other models with this bad key. Move to next key.
+        if (status === 401) {
+          console.warn(`[${callLabel}] Invalid Key (401) for ${keySource}. Discarding key.`);
+          break; // Break the model loop, proceed to next key in list
+        }
+
+        // 2. Rate Limit (429): Try the next model (e.g., 8b might be available when 70b is not).
         if (status === 429) {
-          console.warn(`[${callLabel}] Rate limit (429) hit for key ...${apiKey.slice(-4)}. Trying next key/model...`);
-          // Don't throw, just try the next key
+          console.warn(`[${callLabel}] Rate limit (429) on ${model}. Trying next model...`);
           continue; 
         }
         
+        // 3. Payload Too Large (413): Try next model (70b handles context better than 8b).
         if (status === 413) {
-           console.error(`[${callLabel}] Payload too large (413) even after truncation. This is unusual.`);
-           // Try next model (maybe 70b handles it better) or throw
+           console.warn(`[${callLabel}] Payload too large (413) for ${model}. Trying next model...`);
            continue;
         }
 
+        // 4. Other Errors: Log and try next model
         console.error(`[${callLabel}] Error with ${model}:`, message);
+        continue;
       }
     }
   }
 
   // ── FINAL FALLBACK ────────────────────────────────────────────────────────
   throw new Error(
-    `Generation failed. All Groq keys are likely rate-limited (429) or invalid. ` +
-    `Please get a FREE personal key at https://console.groq.com and update your .env file.`
+    `Generation failed. Please check your API Key in settings. ` +
+    `If you are using your own key, it may be invalid or rate-limited.`
   );
 }

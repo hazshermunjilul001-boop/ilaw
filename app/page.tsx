@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
   const [form, setForm] = useState({
@@ -12,6 +12,22 @@ export default function Home() {
     classroomDetails: '',
     schoolCity: '',
   });
+
+  // ── NEW: State for BYOK (Bring Your Own Key) ────────────────────────
+  const [apiKey, setApiKey] = useState('');
+
+  // Load API key from LocalStorage on page load so the teacher doesn't have to re-enter it
+  useEffect(() => {
+    const savedKey = localStorage.getItem('ilaw_groq_api_key');
+    if (savedKey) setApiKey(savedKey);
+  }, []);
+
+  const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setApiKey(val);
+    localStorage.setItem('ilaw_groq_api_key', val); // Save to browser
+  };
+
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [showDonation, setShowDonation] = useState(false);
@@ -31,8 +47,7 @@ export default function Home() {
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
-  // REPLACE the handleGenerate function in page.tsx (lines 34–116) with this:
-
+  // ── UPDATED handleGenerate to send API Key ────────────────────────────
   const handleGenerate = async () => {
     setLoading(true);
     setStatus('generating');
@@ -43,11 +58,14 @@ export default function Home() {
     }, 7000);
 
     try {
-      // ── 3 sequential API calls — each fits within Vercel Hobby 60s limit ──
+      // Prepare payload including the API Key
+      const payload = { ...form, apiKey };
+
+      // ── 3 sequential API calls ──
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
-      const resA    = await fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      const resFlow = await fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      const resD    = await fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const resA    = await fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resFlow = await fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resD    = await fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
       // Parse all three responses
       async function parseRes(res: Response, label: string) {
@@ -122,9 +140,7 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── FIX #6: gradeSection and sessions are now required before the button activates.
-  // Both are mandatory header fields in Annex B of DO 016 s.2026, and sessions
-  // directly controls the reflection template row count in buildDocx.
+  // ── VALIDATION: Check if API Key is present too ────────────────────────
   const allFilled =
     form.lessonName &&
     form.learningArea &&
@@ -132,17 +148,10 @@ export default function Home() {
     form.gradeSection &&
     form.sessions &&
     form.competency &&
-    form.schoolCity;
+    form.schoolCity &&
+    apiKey; // <--- NEW CHECK: Require API Key
 
-  // ── Field definitions — labels match the header field names in buildDocx.ts ──
-  // lessonName   → "Lesson Title"        (was "Name of Lesson")
-  // learningArea → "Learning Area/s"     (unchanged)
-  // teacherName  → "Name of Teacher/s"   (was "Teacher's Name")
-  // gradeSection → "Grade Level and Section" (unchanged)
-  // sessions     → "No. of Sessions"     (unchanged, now required)
-  // schoolCity   → "School City / Municipality" (unchanged)
-  // competency   → "Learning Competency (MELC)" (unchanged)
-  // classroomDetails → optional context  (unchanged)
+  // ── Field definitions ──
   const fields = [
     {
       key: 'lessonName',
@@ -174,7 +183,7 @@ export default function Home() {
       placeholder: 'e.g. Grade 10 — Rizal',
       icon: '🏫',
       area: false,
-      required: true,   // FIX #6: now required
+      required: true,
     },
     {
       key: 'schoolCity',
@@ -190,7 +199,7 @@ export default function Home() {
       placeholder: 'e.g. 3 sessions: 1hr 40min, 1hr 40min, 40min',
       icon: '⏱️',
       area: false,
-      required: true,   // FIX #6: now required
+      required: true,
     },
     {
       key: 'competency',
@@ -433,6 +442,7 @@ export default function Home() {
           margin-top: 4px;
         }
         .req-note span { color: #ec4899; }
+        .req-note a { color: #6d28d9; text-decoration: underline; }
 
         .gen-wrap { margin-top: 28px; }
 
@@ -641,6 +651,26 @@ export default function Home() {
               ✏️ Lesson Details
             </div>
 
+            {/* ── NEW: API KEY INPUT ── */}
+            <div className="field-group field-full" style={{ marginBottom: 20, padding: 16, background: '#f5f3ff', borderRadius: 12, border: '1px solid #ddd6fe' }}>
+              <label className="field-label" style={{ color: '#5b21b6' }}>
+                <span className="icon">🔑</span>
+                Groq API Key <span className="req">*</span>
+              </label>
+              <input
+                type="password"
+                className="field-input"
+                placeholder="gsk_..."
+                value={apiKey}
+                onChange={handleKeyChange}
+                style={{ background: '#fff', borderColor: '#c4b5fd' }}
+              />
+              <p className="req-note" style={{ marginTop: 8, color: '#6d28d9' }}>
+                Required to generate. Get a free key at <a href="https://console.groq.com" target="_blank" rel="noreferrer">console.groq.com</a>. <br/>
+                Your key is saved securely in your browser and never shared.
+              </p>
+            </div>
+
             <p className="req-note" style={{ marginBottom: 18 }}>
               Fields marked <span>*</span> are required to generate your lesson plan.
             </p>
@@ -694,10 +724,9 @@ export default function Home() {
                 )}
               </button>
 
-              {/* FIX #6: Show a hint if the button is still disabled */}
               {!allFilled && !loading && (
                 <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
-                  Please fill in all required fields <span>*</span> to enable generation.
+                  Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
                 </p>
               )}
 
@@ -745,7 +774,7 @@ export default function Home() {
                     boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
                   }}>
                     {/* Gold top accent */}
-                    <div style={{ background: 'linear-gradient(135deg, #1B5E20, #F9A825)', height: 6, borderRadius: '12px 12px 0 0', margin: '-32px -32px 24px -32px' }} />
+                    <div style={{ background: 'linear-gradient(135deg, #1B5E20, #F9A825)', height: 6, borderRadius: '12px 12px 0 0', margin: '-32px -32px 24px-32px' }} />
 
                     <div style={{ fontSize: 40, marginBottom: 8 }}>🙏</div>
                     <h2 style={{ color: '#1B5E20', fontSize: 20, fontWeight: 800, marginBottom: 8 }}>
@@ -791,6 +820,7 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                apiKey: apiKey, // <--- ADDED: Send key to PPT route
                               }),
                             });
                             if (!res.ok) {
@@ -839,6 +869,7 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                apiKey: apiKey, // <--- ADDED: Send key even if they don't donate
                               }),
                             });
                             if (!res.ok) {

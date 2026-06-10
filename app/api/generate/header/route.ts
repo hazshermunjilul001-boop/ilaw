@@ -11,7 +11,8 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity } = body;
+    // ── CHANGE: Extract apiKey from the request body ───────────────────────
+    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
 GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
 COMPETENCY: ${competency}
 CLASSROOM: ${classroomDetails}
-${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
+ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
 
     const systemPrompt = `You are an expert DepEd Philippines ILAW lesson plan writer. Always follow these rules:
 • Write in ${lang}
@@ -58,13 +59,13 @@ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flash
     const prompt = `Write SECTION A of an ILAW lesson plan. Output ONLY these 5 sections in order, fully written, no placeholders.
 Each section key must be on its OWN line alone. Do not append a colon to the main section key lines.
 
-${lessonHeader}
+ ${lessonHeader}
 
 REFERENCES
 Write 4-6 real DepEd references — full author, year, title, publisher, ISBN where available, page numbers, MELC code.
 
 DECLARATION_AI
-${aiNote}
+ ${aiNote}
 
 LEARNING_COMPETENCY
 Full MELC text and code. Content Standard. Performance Standard.
@@ -82,7 +83,9 @@ LEARNER_CONTEXT
 **${L.barriers}:** • 5 specific learning barriers this topic typically causes
 **${L.support}:** • 5 concrete strategies, one matched to each barrier above`;
 
-    const content = await callAI(systemPrompt, prompt, 'A-HEADER');
+    // ── CHANGE: Pass the apiKey to the callAI function ──────────────────────────
+    const content = await callAI(systemPrompt, prompt, apiKey, 'A-HEADER');
+    
     return NextResponse.json({ content });
   } catch (error: any) {
     console.error('HEADER ROUTE ERROR:', error?.message);

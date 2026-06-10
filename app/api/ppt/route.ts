@@ -30,7 +30,7 @@ function buildSessionPrompt(
   return `Here is a complete ILAW Lesson Plan. Transform Session ${sessionNum} of ${sessionCount} into student-facing PowerPoint slide content.
 
 LESSON PLAN CONTENT:
-${content.slice(0, 10000)}
+ ${content.slice(0, 10000)}
 
 Focus on Session ${sessionNum}. Output ONLY valid JSON for this single session object (no array wrapper, no lessonHook):
 {
@@ -101,7 +101,7 @@ function buildHookPrompt(content: string): string {
 {"lessonHook": "One surprising fact or question to open the presentation (max 25 words)"}
 
 LESSON PLAN CONTENT:
-${content.slice(0, 3000)}`;
+ ${content.slice(0, 3000)}`;
 }
 
 function parseJson<T>(raw: string, label: string): T | null {
@@ -121,7 +121,8 @@ function parseJson<T>(raw: string, label: string): T | null {
 
 export async function POST(req: Request) {
   try {
-    const { content, teacherName, lessonName, learningArea, gradeSection, sessions } =
+    // ── CHANGE: Extract apiKey from the request body ───────────────────────
+    const { content, teacherName, lessonName, learningArea, gradeSection, sessions, apiKey } =
       await req.json();
 
     if (!content) {
@@ -133,12 +134,14 @@ export async function POST(req: Request) {
     // ── Call AI in parallel: one hook call + one call per session ──────────
     console.log(`[PPT] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
 
-    const hookPromise = callAI(SYSTEM, buildHookPrompt(content), 'PPT-HOOK', 200)
+    // ── CHANGE: Pass apiKey to the hook call ───────────────────────────────
+    const hookPromise = callAI(SYSTEM, buildHookPrompt(content), apiKey, 'PPT-HOOK', 200)
       .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
       .catch(() => null);
 
+    // ── CHANGE: Pass apiKey to the session loop calls ───────────────────────
     const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
-      callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), `PPT-S${i + 1}`, 3000)
+      callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), apiKey, `PPT-S${i + 1}`, 3000)
         .then(raw => parseJson<any>(raw, `session${i + 1}`))
         .catch(() => null),
     );

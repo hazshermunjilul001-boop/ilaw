@@ -11,7 +11,8 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity } = body;
+    // ── CHANGE: Extract apiKey from the request body ───────────────────────
+    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
 GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
 COMPETENCY: ${competency}
 CLASSROOM: ${classroomDetails}
-${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
+ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flashcards only.' : ''}`;
 
     const systemPrompt = `You are an expert DepEd Philippines ILAW lesson plan writer. Always follow these rules:
 • Write in ${lang}
@@ -90,7 +91,7 @@ ${noProjector ? 'NOTE: NO projector or TV — use board, chalk, cartolina, flash
     const promptB = `Write SECTION B of an ILAW lesson plan. Output ONLY the PRE_LESSON section, fully written for EVERY session. Never skip any session.
 The section key PRE_LESSON must be on its OWN line alone.
 
-${lessonHeader}
+ ${lessonHeader}
 
 PRE_LESSON
 Write a complete entry for EVERY session listed in SESSIONS above. Use this exact structure for each:
@@ -109,7 +110,7 @@ Write a complete entry for EVERY session listed in SESSIONS above. Use this exac
     const promptC = `Write SECTION C of an ILAW lesson plan. Output ONLY these 3 sections in order, fully written. Never skip any session.
 Each section key must be on its OWN line alone.
 
-${lessonHeader}
+ ${lessonHeader}
 
 FLOW
 Write the complete lesson flow for EVERY session. For each session, design a coherent instructional sequence guided by these Learning Design Principles (DO 016 s.2026 Annex B):
@@ -148,9 +149,10 @@ OPPORTUNITIES_FOR_INTEGRATION
 **${L.values}:** • Identify 2 explicit moments where Filipino core values are actively reinforced.
 **${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
 
-    // Run B and C in parallel — each is fast enough to fit within 60s together
-    const partB = await callAI(systemPrompt, promptB, 'B-PRELESSON');
-    const partC = await callAI(systemPrompt, promptC, 'C-FLOW');
+    // ── CHANGE: Pass apiKey to the callAI function for both parts ──────────
+    // Run B and C in parallel — each is fast enough to fit within 60s together.
+    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON');
+    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW');
 
     return NextResponse.json({ content: partB + '\n\n' + partC });
   } catch (error: any) {

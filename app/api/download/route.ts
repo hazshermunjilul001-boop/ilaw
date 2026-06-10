@@ -13,6 +13,9 @@ export async function POST(req: Request) {
     const { content, teacherName, lessonName, learningArea, gradeSection, sessions } =
       await req.json();
 
+    // BYOK NOTE: This route does not need the API Key because it only handles file formatting (DOCX).
+    // The AI generation happens in the /api/generate routes before this one is called.
+
     if (!content) {
       return NextResponse.json({ error: 'No content provided' }, { status: 400 });
     }
