@@ -410,8 +410,8 @@ EXTENDED_LEARNING
       // ── PRIORITY 2: Cerebras (free tier, fast inference) ─────────────────────
       if (!result && hasCerebras) {
         const cerebrasModels = [
-          'llama3.3-70b',   // correct slug
-          'llama3.1-8b',    // correct slug
+          'llama-3.3-70b',
+          'llama-3.1-8b',
         ];
         for (const model of cerebrasModels) {
           const text = await tryProvider(
