@@ -149,10 +149,8 @@ OPPORTUNITIES_FOR_INTEGRATION
 **${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
 
     // Run B and C in parallel — each is fast enough to fit within 60s together
-    const [partB, partC] = await Promise.all([
-      callAI(systemPrompt, promptB, 'B-PRELESSON'),
-      callAI(systemPrompt, promptC, 'C-FLOW'),
-    ]);
+    const partB = await callAI(systemPrompt, promptB, 'B-PRELESSON');
+    const partC = await callAI(systemPrompt, promptC, 'C-FLOW');
 
     return NextResponse.json({ content: partB + '\n\n' + partC });
   } catch (error: any) {
