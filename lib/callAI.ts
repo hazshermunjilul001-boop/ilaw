@@ -21,6 +21,8 @@ export const GEMINI_KEYS = [
   process.env.GOOGLE_AI_KEY_5,
 ].filter((k): k is string => !!k);
 
+console.log('[callAI] Module loaded. GEMINI_KEYS:', GEMINI_KEYS.length, 'GROQ_KEYS:', GROQ_KEYS.length);
+
 function isSkippable(err: any): boolean {
   const msg: string = err?.message ?? '';
   const status = err?.status ?? err?.statusCode ?? 0;
