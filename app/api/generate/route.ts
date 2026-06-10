@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import Groq from 'groq-sdk';
 import { NextResponse } from 'next/server';
 
-// Groq key pool — add GROQ_API_KEY_2 and GROQ_API_KEY_3 to .env.local
+// Groq key pool
 const GROQ_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
@@ -12,7 +12,16 @@ const GROQ_KEYS = [
   process.env.GROQ_API_KEY_4,
   process.env.GROQ_API_KEY_5,
   process.env.GROQ_API_KEY_6,
-  process.env.GROQ_API_KEY_7
+  process.env.GROQ_API_KEY_7,
+].filter((k): k is string => !!k);
+
+// Gemini key pool — rotate across keys to multiply the 1,500 req/day free limit
+const GEMINI_KEYS = [
+  process.env.GOOGLE_AI_KEY,
+  process.env.GOOGLE_AI_KEY_2,
+  process.env.GOOGLE_AI_KEY_3,
+  process.env.GOOGLE_AI_KEY_4,
+  process.env.GOOGLE_AI_KEY_5,
 ].filter((k): k is string => !!k);
 
 export async function POST(req: Request) {
@@ -33,15 +42,14 @@ export async function POST(req: Request) {
 
     const hasGroq       = GROQ_KEYS.length > 0;
     const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
-    const hasMistral    = !!process.env.MISTRAL_API_KEY;
+    const hasMistral    = false; // removed — key deleted
     const hasCerebras   = !!process.env.CEREBRAS_API_KEY;
-    const hasGemini     = !!process.env.GOOGLE_AI_KEY;
+    const hasGemini     = GEMINI_KEYS.length > 0;
 
     console.log('Providers available:', {
       groq: `${GROQ_KEYS.length} keys`,
-      gemini: hasGemini,
+      gemini: `${GEMINI_KEYS.length} keys`,
       cerebras: hasCerebras,
-      mistral: hasMistral,
       openRouter: hasOpenRouter,
     });
 
@@ -373,29 +381,35 @@ EXTENDED_LEARNING
         }
       }
 
-      // ── PRIORITY 1: Google Gemini (1M tokens/day FREE — highest free quota) ──
-      // Always try Gemini first. It resets every 24h and handles high concurrency
-      // far better than Groq's shared per-org TPD limit.
+      /// ── PRIORITY 1: Google Gemini — rotate across all keys ───────────────────
+      // 1,500 req/day per key × 5 keys = 7,500 req/day free, resets every 24h.
       if (!result && hasGemini) {
         const geminiModels = [
-          'gemini-2.0-flash',      // 1M TPD free, fastest
-          'gemini-1.5-flash',      // 1M TPD free, reliable fallback
-          'gemini-1.5-flash-8b',   // highest quota ceiling
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-1.5-flash-latest',
+          'gemini-1.5-flash-8b-latest',
         ];
-        for (const model of geminiModels) {
-          const text = await tryProvider(
-            `Gemini/${model}`,
-            `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
-            `Bearer ${process.env.GOOGLE_AI_KEY}`,
-            model,
-          );
-          if (text) { result = text; break; }
+        outerGemini:
+        for (const apiKey of GEMINI_KEYS) {
+          for (const model of geminiModels) {
+            const text = await tryProvider(
+              `Gemini/${model}`,
+              `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+              `Bearer ${apiKey}`,
+              model,
+            );
+            if (text) { result = text; break outerGemini; }
+          }
         }
       }
 
       // ── PRIORITY 2: Cerebras (free tier, fast inference) ─────────────────────
       if (!result && hasCerebras) {
-        const cerebrasModels = ['llama-3.3-70b', 'llama3.3-70b'];
+        const cerebrasModels = [
+          'llama-3.3-70b',
+          'llama3.1-8b',
+        ];
         for (const model of cerebrasModels) {
           const text = await tryProvider(
             `Cerebras/${model}`,
@@ -407,8 +421,7 @@ EXTENDED_LEARNING
         }
       }
 
-      // ── PRIORITY 3: Groq key pool (500K TPD per org — burns fast under load) ──
-      // Tried AFTER Gemini and Cerebras so it is preserved for overflow only.
+      // ── PRIORITY 3: Groq key pool — overflow only ────────────────────────────
       if (!result && hasGroq) {
         const PREFERRED = [
           'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -467,26 +480,13 @@ EXTENDED_LEARNING
         }
       }
 
-      // ── PRIORITY 4: Mistral (monthly quota — use last, burns slowly) ──────────
-      if (!result && hasMistral) {
-        const mistralModels = ['mistral-small-latest', 'mistral-large-latest'];
-        for (const model of mistralModels) {
-          const text = await tryProvider(
-            `Mistral/${model}`,
-            'https://api.mistral.ai/v1/chat/completions',
-            `Bearer ${process.env.MISTRAL_API_KEY}`,
-            model,
-          );
-          if (text) { result = text; break; }
-        }
-      }
-
-      // ── PRIORITY 5: OpenRouter (credit-based — last resort) ──────────────────
+      // ── PRIORITY 4: OpenRouter — last resort, updated free model slugs ────────
       if (!result && hasOpenRouter) {
         const orModels = [
           'meta-llama/llama-3.3-70b-instruct:free',
-          'google/gemma-3-27b-it:free',
-          'mistralai/mistral-7b-instruct:free',
+          'google/gemma-2-9b-it:free',
+          'qwen/qwen3-8b:free',
+          'microsoft/phi-3-medium-128k-instruct:free',
         ];
         for (const model of orModels) {
           const text = await tryProvider(
@@ -494,7 +494,7 @@ EXTENDED_LEARNING
             'https://openrouter.ai/api/v1/chat/completions',
             `Bearer ${process.env.OPENROUTER_API_KEY}`,
             model,
-            { 'HTTP-Referer': 'https://ilaw.vercel.app', 'X-Title': 'ILAW Lesson Plan Generator' },
+            { 'HTTP-Referer': 'https://ilawlpgenerator.vercel.app', 'X-Title': 'ILAW LP Generator' },
           );
           if (text) { result = text; break; }
         }
