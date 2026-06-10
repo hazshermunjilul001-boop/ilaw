@@ -45,11 +45,9 @@ export default function Home() {
     try {
       // ── 3 sequential API calls — each fits within Vercel Hobby 60s limit ──
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
-      const [resA, resFlow, resD] = await Promise.all([
-        fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
-        fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
-        fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }),
-      ]);
+      const resA    = await fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const resFlow = await fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const resD    = await fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
 
       // Parse all three responses
       async function parseRes(res: Response, label: string) {

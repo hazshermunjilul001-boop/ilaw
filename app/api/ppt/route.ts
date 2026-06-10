@@ -112,8 +112,15 @@ Generate exactly ${sessionCount} session(s) in the sessions array.`;
 
     let slideData: any;
     try {
-      const clean = aiResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-      slideData = JSON.parse(clean);
+      const clean = aiResponse
+        .replace(/```json\s*/gi, '')
+        .replace(/```\s*/g, '')
+        .replace(/^\s*[\r\n]/gm, '')
+        .trim();
+      // Extract just the JSON object if there's text before/after
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON found in response');
+      slideData = JSON.parse(jsonMatch[0]);
     } catch (parseErr) {
       console.error('[PPT] JSON parse failed. Raw response:', aiResponse.slice(0, 500));
       return NextResponse.json(
