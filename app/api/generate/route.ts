@@ -384,7 +384,11 @@ EXTENDED_LEARNING
 
       // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
       if (!result && hasGemini) {
-        const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+        const geminiModels = [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-1.5-flash-latest',
+        ];
 
         // Key 1 (paid) uses v1 endpoint; free keys use v1beta
         for (let i = 0; i < GEMINI_KEYS.length; i++) {
