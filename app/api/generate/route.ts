@@ -382,25 +382,26 @@ EXTENDED_LEARNING
         }
       }
 
-      /// ── PRIORITY 1: Google Gemini — rotate across all keys ───────────────────
-      // 1,500 req/day per key × 5 keys = 7,500 req/day free, resets every 24h.
+      // ── PRIORITY 1: Google Gemini ─────────────────────────────────────────────
       if (!result && hasGemini) {
-        const geminiModels = [
-          'gemini-2.0-flash',
-          'gemini-1.5-flash',
-          'gemini-1.5-flash-8b',
-        ];
-        outerGemini:
-        for (const apiKey of GEMINI_KEYS) {
+        const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+
+        // Key 1 (paid) uses v1 endpoint; free keys use v1beta
+        for (let i = 0; i < GEMINI_KEYS.length; i++) {
+          const apiKey = GEMINI_KEYS[i];
+          const endpoint = i === 0
+            ? 'https://generativelanguage.googleapis.com/v1/openai/chat/completions'
+            : 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
           for (const model of geminiModels) {
             const text = await tryProvider(
               `Gemini/${model}`,
-              `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+              endpoint,
               `Bearer ${apiKey}`,
               model,
             );
-            if (text) { result = text; break outerGemini; }
+            if (text) { result = text; break; }
           }
+          if (result) break;
         }
       }
 
