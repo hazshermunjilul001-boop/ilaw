@@ -1,6 +1,6 @@
 // app/api/generate/flow/route.ts
 // PARTS B+C: PRE_LESSON + FLOW + LEARNING_RESOURCES + OPPORTUNITIES_FOR_INTEGRATION
-// ── FIX: Now runs B and C in parallel to prevent Vercel 60s timeouts.
+// Two parallel calls, each ~20s — fits within Vercel Hobby 60s limit.
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -16,20 +16,20 @@ export async function POST(req: Request) {
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
-
+    
     const lang = isFilipino
-      ? 'FILIPINO/TAGALOG. Lahat ng salita, subheading, at paliwanag ay sa Filipino. Bawal ang Ingles maliban sa ALL CAPS section keys at teknikal na termino.'
-      : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys.';
+      ? 'FILIPINO/TAGALOG. Lahat ng salita ng salita ng text, subheading, at paliwanong mga detalye, subheading, at teknikal na termino.'
+      : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys and technical terms.';
 
     const L = isFilipino ? {
       session:       'SESYON',
       materials:     'Mga Kagamitan',
       procedure:     'Mga Hakbang',
       purpose:       'Layunin ng Aktibidad',
-      warmup:        'Halimbawa ng tanong para sa warm-up',
+      warmup:        'Halimbawa ng tanong sa warm-up',
       teacherScript: 'Mga tagubilin para sa guro',
-      studentActions:'Mga aksyon ng mag-aaral at inaasahang tugon',
-      examples:      'Mga halimbawang kontekstwalisado',
+      studentActions:'Mga aksyon ng mag-aaral at inaasahin sa grope (Hidden Check)',
+      examples:      `Contextualized examples using ${city} landmarks`,
       diffLabel:     'Mga Naka-differentiate na Tagubilin',
       forAll:        'Para sa Lahat ng Mag-aaral',
       forSupport:    'Para sa Mga Nangangailangan ng Tulong',
@@ -42,9 +42,9 @@ export async function POST(req: Request) {
       primaryMat:    'Pangunahing Kagamitan',
       emergency:     'Mga Alternatibo sa Emerhensya',
       otherAreas:    'Iba pang Larangang Pang-aralan',
-      specialTopics: 'Mga Espesyal na Paksa / Kamalayan sa Karera',
+      specialTopics: 'Mga Espesyal na Paksa / Kamalayan ng Karera',
       values:        'Integrasyon ng mga Pagpapahalaga',
-      tech:          'Teknolohiya (Hinaharap na Integrasyon)',
+      tech:          'Teknolohiya (Hinaharap)',
     } : {
       session:       'SESSION',
       materials:     'Materials',
@@ -52,23 +52,23 @@ export async function POST(req: Request) {
       purpose:       'Purpose',
       warmup:        'Sample warm-up question',
       teacherScript: 'Teacher instructions (script)',
-      studentActions:'Student actions and expected responses',
+      studentActions:'Mga aksyon ng mag-aaral at inaasahin sa grope (Hidden Check)',
       examples:      `Contextualized examples using ${city} landmarks`,
-      diffLabel:     'Differentiated Instructions',
-      forAll:        'For All Learners',
-      forSupport:    'For Learners Who Need Support',
-      forAdvanced:   'For Advanced Learners (Enrichment)',
-      guiding:       'Guiding Questions',
-      synthesis:     'Synthesis and Reflection',
-      closing:       'Closing discussion',
-      exit:          'Exit ticket',
-      realLife:      'Real-life connection',
-      primaryMat:    'Primary Materials',
-      emergency:     'Emergency Alternatives',
-      otherAreas:    'Other Learning Areas',
-      specialTopics: 'Special Topics / Career Awareness',
-      values:        'Values Integration',
-      tech:          'Technology (Future Integration)',
+      diffLabel:     'Mga Naka-differentiate na Tagubilin',
+      forAll:        'Para sa Lahat ng Mag-aaral',
+      forSupport:    'Para sa Mga Nangangailangan ng Tulong',
+      forAdvanced:   'Para sa mga Advanced na Mag-aaral (Pagpapayaman)',
+      guiding:       'Mga Gabay na Tanong',
+      synthesis:     'Buod at Repleksyon',
+      closing:       'Pangwakas na talakayan',
+      exit:          'Exit Ticket',
+      realLife:      'Koneksyon sa tunay na buhay',
+      primaryMat:    'Pangunahing Kagamitan',
+      emergency:     'Mga Alternatibo sa Emerhensya',
+      otherAreas:    'Iba pang Larang Pang-aralan',
+      specialTopics: 'Mga Espesyal na Paksa / Kamalayan ng Karera',
+      values:        'Integrasyon ng mga Pagpapahalaga',
+      tech:          'Teknolohiya (Hinaharap)',
     };
 
     const lessonHeader = `LESSON: ${lessonName} | AREA: ${learningArea} | TEACHER: ${teacherName}
@@ -87,89 +87,84 @@ CLASSROOM: ${classroomDetails}
 • CRITICAL: Write the section for EVERY session — never skip, merge, or abbreviate any session.
 • CRITICAL FORMAT RULE: Every ALL-CAPS section key must appear on its OWN line, alone, with nothing else on that line.`;
 
-    const promptB = `Write SECTION B of an ILAW lesson plan. Output ONLY the PRE_LESSON section, fully written for EVERY session. Never skip any session.
-The section key PRE_LESSON must be on its OWN line alone.
+    const prompt = `Write SECTION A of an ILAW lesson plan. Output ONLY these 5 sections in order, fully written, no placeholders.
+Each section key must be on its OWN line alone. Do not append a colon to the main section key lines.
 
  ${lessonHeader}
 
-PRE_LESSON
-Write a complete entry for EVERY session listed in SESSIONS above. Use this exact structure for each:
+REFERENCES
+Write 4-6 real DepEd references — full author, year, title, publisher, ISBN where available, page numbers, MELC code.
 
-**${L.session} N — "Warm-Up Activity Title" (time)**
-**${L.materials}:** • list every physical item needed
-**${L.procedure}:**
-• [Word-for-word teacher line 1] → Expected student response
-• [Word-for-word teacher line 2] → Expected student response
-• [Word-for-word teacher line 3] → Expected student response
-• [Word-for-word teacher line 4] → Expected student response
-• [Word-for-word teacher line 5] → Expected student response
-**${L.purpose}:** One sentence: what prior knowledge this activates and why it matters for today's session.
-**${L.warmup}:** Write the full question using a specific ${city} place, person, or event. Then write the expected complete student answer.`;
+DECLARATION_AI
+ ${isFilipino ? '3-4 pangungusap sa FILIPINO tungkol sa AI, pagsusuri sa guro, pagsusuri ng guro, at pagsusuri ng DO 3 s.2026 Annex A compliance. Bawal mag Ingles maliban sa ALL CAPS section keys at teknikal na termino.
 
-    const promptC = `Write SECTION C of an ILAW lesson plan. Output ONLY these 3 sections in order, fully written. Never skip any session.
-Each section key must be on its OWN line alone.
+LEARNING_COMPETENCY
+Full MELC text and code. Content Standard. Performance Standard.
 
- ${lessonHeader}
+LEARNING_OBJECTIVES
+Write separately for EVERY session listed in SESSIONS above.
+Format per session:
+**${L.session} N — "Title" (duration)**
+• [Clear, focused learning objective using an action verb. One per bullet.
+• [Second objective if needed]
 
-FLOW
-Write the complete lesson flow for EVERY session. For each session, design a coherent instructional sequence guided by these Learning Design Principles (DO 016 s.2026 Annex B):
-• Clear Goals • Scaffolding • Active Learning • Checks for Understanding • Differentiation • Connection to Real Life
+LEARNER_CONTEXT
+**${L.strengths}** • 4 specific bullets on what this class already knows relevant to ${lessonName}.
+**${L.interests}** • 4 bullets tied to real ${city} youth culture, landmarks, or events.
+**${L.barriers}** • 5 specific learning barriers this topic typically causes.
+**${L.support}** • 5 concrete strategies, one matched to each barrier above.
 
-For EACH session write:
-**${L.session} N — "Session Title" (total duration)**
+EXTENDED_LEARNING
+Write a complete entry for EVERY session listed in SESSIONS above.
+Format per session:
+**${L.session} N**
+**${L.homework}** • One meaningful take-home task directly connected to today's session. Include specific ${city} context.
+**${L.enrichment** • One higher-order challenge for students who mastered the session objectives.
+**${L.remediation** • One targeted re-teaching activity for students who did not meet the session objectives.
+**${L.family} • One concrete suggestion for how families can support learning at home related to this topic.`;`;
 
-**${L.teacherScript}:** Word-for-word teacher lines. Include real ${city} examples with specific names, places, or amounts.
-**${L.studentActions}:** What students write, say, calculate, or produce at each stage.
-**${L.examples}:**
-• Example 1: Fully worked problem using a real ${city} street, institution, or price — show complete solution.
-• Example 2: Fully worked problem using a different real ${city} context — show complete solution.
-**${L.diffLabel}:**
-• **${L.forAll}:** Exact universal instruction for all students.
-• **${L.forSupport}:** Specific scaffold explicitly tied to this task.
-• **${L.forAdvanced}:** Genuine higher-order challenge.
-**${L.guiding}:**
-• [KNOWLEDGE] Full question
-• [COMPREHENSION] Full question
-• [APPLICATION] Full question
-• [ANALYSIS] Full question
-• [EVALUATION] Full question
-**${L.synthesis}:**
-• **${L.closing}:** Write 3 full discussion questions with expected student responses.
-• **${L.exit}:** Write the exact exit ticket question + scoring guide.
-• **${L.realLife}:** 2-3 sentences connecting this lesson to something real and current in ${city}.
+    // ── Call AI in parallel: one hook call + one call per session ───────────────
+    console.log(`[C-FLOW] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
+    const hookPromise = callAI(SYSTEM, buildHookPrompt(content), apiKey, 'PPT-HOOK', 200)
+      .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook')
+      .catch(() => null);
 
-LEARNING_RESOURCES
-**${L.primaryMat}:** • List 3 distinct resources detailing authors, specific module chapters, and exact page numbers.
-**${L.emergency}:** • Provide 3 comprehensive backup strategies if all technology or printed resources fail.
+    const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
+      callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), apiKey, `PPT-S${i + 1}`, 3000)
+        .then(raw => parseJson<any>(raw, `session${i + 1}`)
+        .catch(() => null),
+    );
 
-OPPORTUNITIES_FOR_INTEGRATION
-**${L.otherAreas}:** • Provide 2 explicit subject-to-subject links showing how ${lessonName} connects to other Grade 10 subjects.
-**${L.specialTopics}:** • Connect this topic to 2 real public offices or enterprises in ${city} where professionals use these skills.
-**${L.values}:** • Identify 2 explicit moments where Filipino core values are actively reinforced.
-**${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
+    const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
 
-    // ── FIX: Run B and C in parallel using Promise.allSettled ───────────────
-    // This prevents a timeout in Part B from cancelling Part C, and reduces total time.
-    console.log(`[FLOW] Starting parallel generation...`);
-
-    const results = await Promise.allSettled([
-      callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON'),
-      callAI(systemPrompt, promptC, apiKey, 'C-FLOW'),
-    ]);
-
-    const partB = results[0].status === 'fulfilled' ? results[0].value : null;
-    const partC = results[1].status === 'fulfilled' ? results[1].value : null;
-
-    if (!partB || !partC) {
-      const reasonB = results[0].status === 'rejected' ? results[0].reason.message : 'Success';
-      const reasonC = results[1].status === 'rejected' ? results[1].reason.message : 'Success';
-      console.error(`[FLOW] Failed. B: ${reasonB}, C: ${reasonC}`);
-      throw new Error(`Lesson plan generation timed out or failed. Please try again. (B: ${reasonB?.slice(0, 50)}, C: ${reasonC?.slice(0, 50)})`);
+    // Check that at least session 1 succeeded
+    if (!sessionResults[0]) {
+      return NextResponse.json({ error: 'AI failed to generate slide content. Please try again.' }, { status: 500 });
     }
 
-    return NextResponse.json({ content: partB + '\n\n' + partC });
+    const slideData = {
+      lessonHook: hookData?.lessonHook ?? '',
+      sessions: sessionResults.map((s, i) => s ?? { sessionNum: i + 1 }), // Fallback to placeholder if null
+    };
+
+    console.log(`[PPT] Slide data ready. Sessions: ${slideData.sessions.length}`);
+
+    const buffer = await buildPptxBuffer(
+      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount,
+    );
+
+    const safeName = lessonName
+      ? lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
+      : 'ILAW_Slides';
+
+    return new Response(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${safeName}_Slides.pptx"`,
+      },
+    });
   } catch (error: any) {
-    console.error('FLOW ROUTE ERROR:', error?.message);
-    return NextResponse.json({ error: error?.message || 'Unknown error' }, { status: 500 });
+    console.error('PPT ROUTE ERROR:', error?.message);
+    return NextResponse.json({ error: error?.message || 'Failed to generate PowerPoint. Please try again.' }, { status: 500 });
   }
-}

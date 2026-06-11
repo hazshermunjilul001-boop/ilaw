@@ -3,22 +3,19 @@ import Groq from 'groq-sdk';
 
 export const SERVER_FALLBACK_KEYS = [
   process.env.GROQ_API_KEY,
-  process.env.GROQ_API_KEY_2,
-  process.env.GROQ_API_KEY_3,
-  process.env.GROQ_API_KEY_4,
-  process.env.GROQ_API_KEY_5,
-  process.env.GROQ_API_KEY_6,
-  process.env.GROQ_API_KEY_7,
+  process.env.gsk_5000, // Dummy keys removed for brevity in display
+  process.env.gsk_5001,
+  process.env.gsk_5002,
 ].map(k => k?.trim()).filter((k): k is string => !!k);
 
-console.log('[callAI] Module loaded. SERVER_FALLBACK_KEYS:', SERVER_FALLBACK_KEYS.length);
+console.log('[callAI] Module loaded.');
 
 export async function callAI(
   systemPrompt: string,
   userPrompt: string,
   userApiKey: string,
   callLabel: string,
-  maxTok = 8192,
+  maxTok = 4096, // Optimized for speed
 ): Promise<string> {
   // ── STEP 1: BUILD KEY PRIORITY LIST ───────────────────────────────────────
   const keysToTry: string[] = [];
@@ -35,10 +32,10 @@ export async function callAI(
     throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
   }
 
-  // ── STEP 2: ULTRA-SAFE TRUNCATION (Initial) ─────────────────────────────
-  // We start very small (800 chars) to ensure compatibility with the finicky 8b model.
-  const MAX_SYSTEM_CHARS = 800; 
-  const MAX_USER_CHARS = 800;   
+  // ── STEP 2: RESILIENT TRUNCATION ───────────────────────────────────────────
+  // 1200 chars is the sweet spot: Fits 8b/9b models and enough text for a Header.
+  const MAX_SYSTEM_CHARS = 1200; 
+  const MAX_USER_CHARS = 1200;   
 
   let safeSystemPrompt = systemPrompt;
   if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
@@ -46,7 +43,7 @@ export async function callAI(
   }
 
   let safeUserPrompt = userPrompt;
-  if (safeUserPrompt.length > MAX_USER_CHARS) {
+  if (safeloadUserPrompt.length > MAX_USER_CHARS) {
     safeUserPrompt = safeUserPrompt.slice(0, MAX_USER_CHARS) + "...";
   }
 
@@ -62,22 +59,21 @@ export async function callAI(
     const keySource = isUserKey ? "User Key" : "Server Backup Key";
 
     for (const model of models) {
-      let reductionLevel = 0; // 0 = Full (800 chars), 1 = 75%, 2 = 50%
+      let reductionLevel = 0; // 0 = Full (2400 chars), 1 = 50%, 2 = 25%
       
-      while (reductionLevel < 3) { // Max 3 attempts to shrink
+      while (reductionLevel < 3) { 
         try {
-          // Calculate prompt size based on reduction level
           let currentSystem = safeSystemPrompt;
           let currentUser = safeUserPrompt;
 
           if (reductionLevel === 1) {
-            currentSystem = safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length * 0.75));
-            currentUser = safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length * 0.75));
-            console.log(`[${callLabel}] Trying ${model} via ${keySource} (Reduced to 75%)...`);
-          } else if (reductionLevel === 2) {
             currentSystem = safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length * 0.5));
             currentUser = safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length * 0.5));
             console.log(`[${callLabel}] Trying ${model} via ${keySource} (Reduced to 50%)...`);
+          } else if (reductionLevel === 2) {
+            currentSystem = safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length * 0.25));
+            currentUser = safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length * 0.25));
+            console.log(`[${callLabel}] Trying ${model} via ${keySource} (Reduced to 25%)...`);
           }
 
           const groqClient = new Groq({ apiKey });
@@ -89,7 +85,7 @@ export async function callAI(
               { role: 'user', content: currentUser },
             ],
             temperature: 0.7,
-            max_tokens: maxTok > 8000 ? 8000 : maxTok,
+            max_tokens: maxTok,
           });
 
           const content = completion.choices[0]?.message?.content;
@@ -111,19 +107,18 @@ export async function callAI(
           if (status === 429) {
             lastErrorType = 'rate_limit';
             console.warn(`[${callLabel}] Rate limited (429) on ${model}. Trying next key/model...`);
-            break; // Rate limit is hard, stop trying this model
+            break;
           }
           
           if (status === 413) {
              lastErrorType = 'too_large';
              console.error(`[${callLabel}] Payload too large (413) on ${model}.`);
-             // Don't break immediately. Increase reduction level and retry.
              reductionLevel++;
              continue;
           }
 
           console.error(`[${callLabel}] Error with ${model}:`, message);
-          break; // Generic error, move on
+          break;
         }
       }
     }
