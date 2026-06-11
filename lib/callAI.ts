@@ -35,10 +35,10 @@ export async function callAI(
     throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
   }
 
-  // ── STEP 2: TRUNCATION SETTINGS ─────────────────────────────────────────────
-  // We allow up to 2000 chars initially. If 413 happens, we retry with half.
-  const MAX_SYSTEM_CHARS = 2000; 
-  const MAX_USER_CHARS = 2000;   
+  // ── STEP 2: ULTRA-SAFE TRUNCATION (Initial) ─────────────────────────────
+  // We start very small (800 chars) to ensure compatibility with the finicky 8b model.
+  const MAX_SYSTEM_CHARS = 800; 
+  const MAX_USER_CHARS = 800;   
 
   let safeSystemPrompt = systemPrompt;
   if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
@@ -62,28 +62,31 @@ export async function callAI(
     const keySource = isUserKey ? "User Key" : "Server Backup Key";
 
     for (const model of models) {
-      let triedReduced = false; // Flag to track if we already halved the prompt for this model
-
-      while (true) {
+      let reductionLevel = 0; // 0 = Full (800 chars), 1 = 75%, 2 = 50%
+      
+      while (reductionLevel < 3) { // Max 3 attempts to shrink
         try {
-          // Prepare the prompts for this specific attempt
-          const currentSystemPrompt = triedReduced 
-            ? safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length / 2)) 
-            : safeSystemPrompt;
-          
-          const currentUserPrompt = triedReduced 
-            ? safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length / 2)) 
-            : safeUserPrompt;
+          // Calculate prompt size based on reduction level
+          let currentSystem = safeSystemPrompt;
+          let currentUser = safeUserPrompt;
 
-          console.log(`[${callLabel}] Trying ${model} via ${keySource} ...${apiKey.slice(-4)}${triedReduced ? ' (Reduced)' : ''}`);
+          if (reductionLevel === 1) {
+            currentSystem = safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length * 0.75));
+            currentUser = safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length * 0.75));
+            console.log(`[${callLabel}] Trying ${model} via ${keySource} (Reduced to 75%)...`);
+          } else if (reductionLevel === 2) {
+            currentSystem = safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length * 0.5));
+            currentUser = safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length * 0.5));
+            console.log(`[${callLabel}] Trying ${model} via ${keySource} (Reduced to 50%)...`);
+          }
 
           const groqClient = new Groq({ apiKey });
 
           const completion = await groqClient.chat.completions.create({
             model,
             messages: [
-              { role: 'system', content: currentSystemPrompt },
-              { role: 'user', content: currentUserPrompt },
+              { role: 'system', content: currentSystem },
+              { role: 'user', content: currentUser },
             ],
             temperature: 0.7,
             max_tokens: maxTok > 8000 ? 8000 : maxTok,
@@ -108,22 +111,15 @@ export async function callAI(
           if (status === 429) {
             lastErrorType = 'rate_limit';
             console.warn(`[${callLabel}] Rate limited (429) on ${model}. Trying next key/model...`);
-            break; // Rate limit is hard, no point in retrying same key/model
+            break; // Rate limit is hard, stop trying this model
           }
           
           if (status === 413) {
              lastErrorType = 'too_large';
              console.error(`[${callLabel}] Payload too large (413) on ${model}.`);
-             
-             // If we haven't tried reducing size yet, do it now
-             if (!triedReduced) {
-               console.log(`[${callLabel}] Reducing prompt size and retrying...`);
-               triedReduced = true;
-               continue; // Loop back to try the same model with halved prompt
-             }
-             
-             // If we already reduced and it STILL failed, give up on this model
-             break;
+             // Don't break immediately. Increase reduction level and retry.
+             reductionLevel++;
+             continue;
           }
 
           console.error(`[${callLabel}] Error with ${model}:`, message);
