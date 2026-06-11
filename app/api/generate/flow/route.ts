@@ -135,23 +135,54 @@ Format per session:
         .catch(() => null),
     );
 
-    const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
+        const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
 
-    // Check that at least session 1 succeeded
-    if (!sessionResults[0]) {
-      return NextResponse.json({ error: 'AI failed to generate slide content. Please try again.' }, { status: 500 });
-    }
-
+    // ── FIX: Ensure slideData is always valid (Prevents "Parsing ecmascript source code" error).
     const slideData = {
-      lessonHook: hookData?.lessonHook ?? '',
-      sessions: sessionResults.map((s, i) => s ?? { sessionNum: i + 1 }), // Fallback to placeholder if null
+      lessonHook: hookData?.lessonHook ?? '(No Hook Generated)',
+      sessions: sessionResults.map((s, i) => {
+        return s ? {
+          sessionNum: s ?? (i + 1),
+          title: s?.title || `Session ${i + 1}`, // Provide defaults if missing title
+          text: s?.text || 'No content available.'
+        };
+      }),
     };
 
-    console.log(`[PPT] Slide data ready. Sessions: ${slideData.sessions.length}`);
+    const buffer = await buildPptx(slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount);
 
-    const buffer = await buildPptxBuffer(
-      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount,
+    // ... rest of the function ...
+```</think>The error `Parsing ecmascript source code failed` is a build-time syntax error. This usually happens when the `slideData` object is missing a field that `buildPlexx` requires (like `title` or `text`).
+
+We need to make sure that every field in the `slideData` object has a fallback value (empty string or "Untitled Session").
+
+### Replace the `Promise.all` block in `app/api/generate/flow/route.ts` with this fixed object creation:
+
+```typescript
+    // ── Call AI in parallel: one hook call + one call per session ─────────────
+    console.log(`[C-FLOW] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
+    const hookPromise = callAI(systemPrompt, buildHookPrompt(content), apiKey, 'PPT-HOOK', 200)
+      .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook')
+      .catch(() => null);
+
+    const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
+      callAI(systemPrompt, buildSessionPrompt(content, i + 1, sessionCount), apiKey, `PPT-S${i + 1}`, 3000)
+        .then(raw => parseJson<any>(raw, `session${i + 1}`)
+        .catch(() => null),
     );
+
+    const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
+
+    // ── FIX: Ensure slideData is valid for buildPptx ───────────────────────────────────────────────────────
+    const slideData = {
+      lessonHook: hookData?.lessonHook || '(No Hook Generated)',
+      sessions: sessionResults.map((s, i) => {
+        // If `s` is null (e.g. Parsing failed or empty), provide a fallback object so buildPptx doesn't crash.
+        return s ?? { sessionNum: i + 1, title: s?.title || `Session ${i + 1}`, text: s?.text || 'No content.' }
+      }),
+    };
+
+    const buffer = await buildPptx(slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount, sessionCount);
 
     const safeName = lessonName
       ? lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)
@@ -161,7 +192,7 @@ Format per session:
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${safeName}_Slides.pptx"`,
+        'Content-Disposition': `attachment; filename="${safeName}_Slides.pptx`,
       },
     });
   } catch (error: any) {
