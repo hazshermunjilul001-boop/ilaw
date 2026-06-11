@@ -58,55 +58,33 @@ export default function Home() {
     }, 7000);
 
     try {
-      // ── FIX: Sequentialize requests to prevent Rate Limiting on User Key ──────
-      // We fetch the 'Header' first (fast), then 'Flow' and 'Assessment' together (heavy).
-      // This gives the API key a 1-second breather between the first hit and the heavy hits.
+      // Prepare payload including the API Key
+      const payload = { ...form, apiKey };
 
+      // ── 3 sequential API calls ──
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
-      
-      // 1. Fetch Header (Sequential)
-      const resA = await fetch('/api/generate/header', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, apiKey }),
-      });
-
-      if (!resA.ok) {
-        const errData = await resA.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to generate Header');
-      }
-
-      setLoadingMessage('🎯 Designing session flow and formative assessments...');
-
-      // 2. Fetch Flow and Assessment (Parallel)
-      const [resFlow, resD] = await Promise.all([
-        fetch('/api/generate/flow', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, apiKey }),
-        }),
-        fetch('/api/generate/assessment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, apiKey }),
-        }),
-      ]);
+      const resA    = await fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resFlow = await fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resD    = await fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
       // Parse all three responses
       async function parseRes(res: Response, label: string) {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `${label} server error (${res.status})`);
+        const rawText = await res.text();
+        let data: any = {};
+        try { data = JSON.parse(rawText); } catch {
+          if (!res.ok) throw new Error(`${label} server error (${res.status}). Please try again.`);
+          throw new Error(`Unexpected response from ${label}. Please try again.`);
         }
-        const data = await res.json();
         if (data.error) throw new Error(data.error);
-        if (!data.content) throw new Error(`No content returned from ${label}.`);
+        if (!data.content) throw new Error(`No content returned from ${label}. Please try again.`);
         return data.content as string;
       }
 
-      const partA = await parseRes(resA, 'A-HEADER');
-      const partBC = await parseRes(resFlow, 'B+C-FLOW');
-      const partD = await parseRes(resD, 'D-ASSESSMENT');
+      const [partA, partBC, partD] = await Promise.all([
+        parseRes(resA,    'A-HEADER'),
+        parseRes(resFlow, 'B+C-FLOW'),
+        parseRes(resD,    'D-ASSESSMENT'),
+      ]);
 
       const combinedContent = [partA, partBC, partD].join('\n\n');
       setGeneratedContent(combinedContent);
