@@ -1,6 +1,5 @@
 // app/api/ppt/route.ts
 // Server-side only — generates student-facing PowerPoint from LP content.
-// FIX: AI call is now split per-session to avoid JSON truncation on large outputs.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -110,18 +109,37 @@ function parseJson<T>(raw: string, label: string): T | null {
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON object found');
-    return JSON.parse(match[0]) as T;
+    
+    // ── FIX: Improved Parsing to handle "Double Object" errors ────────────────
+    // If AI returns "{} {}", we only want the first valid object.
+    const firstBrace = clean.indexOf('{');
+    if (firstBrace === -1) throw new Error('No JSON start found');
+    
+    // Count braces to find the matching closing brace for the FIRST object
+    let braceCount = 0;
+    let endIndex = -1;
+    for (let i = firstBrace; i < clean.length; i++) {
+      if (clean[i] === '{') braceCount++;
+      if (clean[i] === '}') braceCount--;
+      if (braceCount === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+
+    if (endIndex === -1) throw new Error('No JSON end found');
+
+    const jsonString = clean.substring(firstBrace, endIndex + 1);
+    return JSON.parse(jsonString) as T;
   } catch (e) {
-    console.error(`[PPT] JSON parse failed for ${label}. Raw: ${raw.slice(0, 300)}`);
+    console.error(`[PPT] JSON parse failed for ${label}.`);
+    console.error(`[PPT] Raw AI Output (first 500 chars): ${raw.slice(0, 500)}`);
     return null;
   }
 }
 
 export async function POST(req: Request) {
   try {
-    // ── CHANGE: Extract apiKey from the request body ───────────────────────
     const { content, teacherName, lessonName, learningArea, gradeSection, sessions, apiKey } =
       await req.json();
 
@@ -134,12 +152,10 @@ export async function POST(req: Request) {
     // ── Call AI in parallel: one hook call + one call per session ──────────
     console.log(`[PPT] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
 
-    // ── CHANGE: Pass apiKey to the hook call ───────────────────────────────
     const hookPromise = callAI(SYSTEM, buildHookPrompt(content), apiKey, 'PPT-HOOK', 200)
       .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
       .catch(() => null);
 
-    // ── CHANGE: Pass apiKey to the session loop calls ───────────────────────
     const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
       callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), apiKey, `PPT-S${i + 1}`, 3000)
         .then(raw => parseJson<any>(raw, `session${i + 1}`))
