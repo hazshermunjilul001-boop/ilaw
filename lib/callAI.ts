@@ -35,9 +35,11 @@ export async function callAI(
     throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
   }
 
-  // ── STEP 2: AGGRESSIVE TRUNCATION ────────────────────────────────────────
-  const MAX_SYSTEM_CHARS = 1500;
-  const MAX_USER_CHARS = 2500;
+  // ── STEP 2: AGGRESSIVE TRUNCATION (Lowered for Stability) ─────────────────
+  // We reduced limits significantly because llama-3.1-8b-instant is rejecting payloads
+  // that are much smaller than expected (e.g., 4KB).
+  const MAX_SYSTEM_CHARS = 1000; // Reduced from 1500
+  const MAX_USER_CHARS = 1500;   // Reduced from 2500
 
   let safeSystemPrompt = systemPrompt;
   if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
@@ -100,7 +102,7 @@ export async function callAI(
         
         if (status === 413) {
            lastErrorType = 'too_large';
-           console.error(`[${callLabel}] Payload too large (413). Trying next model...`);
+           console.error(`[${callLabel}] Payload too large (413) on ${model}. Trying next model...`);
            continue;
         }
 
@@ -112,7 +114,7 @@ export async function callAI(
 
   // ── STEP 4: INTELLIGENT ERROR REPORTING ───────────────────────────────────
   if (lastErrorType === 'rate_limit') {
-    throw new Error('Too many requests (Rate Limit). Please wait 1 minute and try again.');
+    throw new Error('AI server is busy. Please wait 1 minute and try again.');
   }
 
   if (lastErrorType === 'invalid_key') {
@@ -120,7 +122,7 @@ export async function callAI(
   }
 
   if (lastErrorType === 'too_large') {
-    throw new Error('Lesson details are too long. Please shorten your Competency or Classroom Details.');
+    throw new Error('The AI request size limit was reached. Please shorten your text or try again.');
   }
 
   throw new Error(`Generation failed. Please try again.`);
