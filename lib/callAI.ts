@@ -35,11 +35,10 @@ export async function callAI(
     throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
   }
 
-  // ── STEP 2: AGGRESSIVE TRUNCATION (Lowered for Stability) ─────────────────
-  // We reduced limits significantly because llama-3.1-8b-instant is rejecting payloads
-  // that are much smaller than expected (e.g., 4KB).
-  const MAX_SYSTEM_CHARS = 1000; // Reduced from 1500
-  const MAX_USER_CHARS = 1500;   // Reduced from 2500
+  // ── STEP 2: TRUNCATION SETTINGS ─────────────────────────────────────────────
+  // We allow up to 2000 chars initially. If 413 happens, we retry with half.
+  const MAX_SYSTEM_CHARS = 2000; 
+  const MAX_USER_CHARS = 2000;   
 
   let safeSystemPrompt = systemPrompt;
   if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
@@ -63,51 +62,73 @@ export async function callAI(
     const keySource = isUserKey ? "User Key" : "Server Backup Key";
 
     for (const model of models) {
-      try {
-        console.log(`[${callLabel}] Trying ${model} via ${keySource} ...${apiKey.slice(-4)}`);
+      let triedReduced = false; // Flag to track if we already halved the prompt for this model
 
-        const groqClient = new Groq({ apiKey });
+      while (true) {
+        try {
+          // Prepare the prompts for this specific attempt
+          const currentSystemPrompt = triedReduced 
+            ? safeSystemPrompt.slice(0, Math.floor(safeSystemPrompt.length / 2)) 
+            : safeSystemPrompt;
+          
+          const currentUserPrompt = triedReduced 
+            ? safeUserPrompt.slice(0, Math.floor(safeUserPrompt.length / 2)) 
+            : safeUserPrompt;
 
-        const completion = await groqClient.chat.completions.create({
-          model,
-          messages: [
-            { role: 'system', content: safeSystemPrompt },
-            { role: 'user', content: safeUserPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: maxTok > 8000 ? 8000 : maxTok,
-        });
+          console.log(`[${callLabel}] Trying ${model} via ${keySource} ...${apiKey.slice(-4)}${triedReduced ? ' (Reduced)' : ''}`);
 
-        const content = completion.choices[0]?.message?.content;
-        if (content) {
-          console.log(`[${callLabel}] SUCCESS via ${model} (${keySource})`);
-          return content;
+          const groqClient = new Groq({ apiKey });
+
+          const completion = await groqClient.chat.completions.create({
+            model,
+            messages: [
+              { role: 'system', content: currentSystemPrompt },
+              { role: 'user', content: currentUserPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: maxTok > 8000 ? 8000 : maxTok,
+          });
+
+          const content = completion.choices[0]?.message?.content;
+          if (content) {
+            console.log(`[${callLabel}] SUCCESS via ${model} (${keySource})`);
+            return content;
+          }
+        } catch (err: any) {
+          lastError = err;
+          const status = err?.status;
+          const message = err?.message;
+
+          if (status === 401) {
+            lastErrorType = 'invalid_key';
+            console.warn(`[${callLabel}] Invalid Key (401) for ${keySource}. Discarding key.`);
+            break; 
+          }
+
+          if (status === 429) {
+            lastErrorType = 'rate_limit';
+            console.warn(`[${callLabel}] Rate limited (429) on ${model}. Trying next key/model...`);
+            break; // Rate limit is hard, no point in retrying same key/model
+          }
+          
+          if (status === 413) {
+             lastErrorType = 'too_large';
+             console.error(`[${callLabel}] Payload too large (413) on ${model}.`);
+             
+             // If we haven't tried reducing size yet, do it now
+             if (!triedReduced) {
+               console.log(`[${callLabel}] Reducing prompt size and retrying...`);
+               triedReduced = true;
+               continue; // Loop back to try the same model with halved prompt
+             }
+             
+             // If we already reduced and it STILL failed, give up on this model
+             break;
+          }
+
+          console.error(`[${callLabel}] Error with ${model}:`, message);
+          break; // Generic error, move on
         }
-      } catch (err: any) {
-        lastError = err;
-        const status = err?.status;
-        const message = err?.message;
-
-        if (status === 401) {
-          lastErrorType = 'invalid_key';
-          console.warn(`[${callLabel}] Invalid Key (401) for ${keySource}. Discarding key.`);
-          break; 
-        }
-
-        if (status === 429) {
-          lastErrorType = 'rate_limit';
-          console.warn(`[${callLabel}] Rate limited (429) on ${model}. Trying next key/model...`);
-          continue; 
-        }
-        
-        if (status === 413) {
-           lastErrorType = 'too_large';
-           console.error(`[${callLabel}] Payload too large (413) on ${model}. Trying next model...`);
-           continue;
-        }
-
-        console.error(`[${callLabel}] Error with ${model}:`, message);
-        continue;
       }
     }
   }
@@ -122,7 +143,7 @@ export async function callAI(
   }
 
   if (lastErrorType === 'too_large') {
-    throw new Error('The AI request size limit was reached. Please shorten your text or try again.');
+    throw new Error('The lesson details are too long. Please shorten your Competency or Classroom Details.');
   }
 
   throw new Error(`Generation failed. Please try again.`);
