@@ -37,10 +37,6 @@ export async function POST(req: Request) {
     // ────────────────────────────────────────────────────────────────────
 
     const aiNote = isFilipino
-    const lang = isFilipino
-      ? 'FILIPINO/TAGALOG. Lahat ng salita, subheading, at paliwanag ay sa Filipino. Bawal ang Ingles maliban sa ALL CAPS section keys at teknikal na termino.'
-      : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys.';
-
     const L = isFilipino ? {
       session:    'SESYON',
       descLabel:  'Paglalarawan',
