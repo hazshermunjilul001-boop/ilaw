@@ -11,8 +11,20 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    // ── CHANGE: Extract apiKey from the request body ───────────────────────
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
+    
+    // ── CHANGE: Extract apiKey and apiKey2 from the request body ─────────
+    const { 
+      lessonName, 
+      learningArea, 
+      teacherName, 
+      gradeSection, 
+      competency, 
+      sessions, 
+      classroomDetails, 
+      schoolCity, 
+      apiKey,
+      apiKey2 // <--- ADDED
+    } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -99,8 +111,9 @@ Write a complete entry for EVERY session listed in SESSIONS above:
 **${L.remediation}:** One targeted re-teaching activity for students who did not meet the session objectives.
 **${L.family}:** One concrete suggestion for how families can support learning at home related to this topic.`;
 
-    // ── CHANGE: Pass the apiKey to the callAI function ──────────────────────────
-    const content = await callAI(systemPrompt, prompt, apiKey, 'D-ASSESSMENT');
+    // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
+    // 5000 tokens set to accommodate detailed rubrics for multiple sessions.
+    const content = await callAI(systemPrompt, prompt, apiKey, 'D-ASSESSMENT', 5000, apiKey2);
     
     return NextResponse.json({ content });
   } catch (error: any) {

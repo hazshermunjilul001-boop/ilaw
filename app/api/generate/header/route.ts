@@ -11,8 +11,20 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    // ── CHANGE: Extract apiKey from the request body ───────────────────────
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
+    
+    // ── CHANGE: Extract apiKey and apiKey2 from the request body ─────────
+    const { 
+      lessonName, 
+      learningArea, 
+      teacherName, 
+      gradeSection, 
+      competency, 
+      sessions, 
+      classroomDetails, 
+      schoolCity, 
+      apiKey,
+      apiKey2 // <--- ADDED
+    } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -83,8 +95,9 @@ LEARNER_CONTEXT
 **${L.barriers}:** • 5 specific learning barriers this topic typically causes
 **${L.support}:** • 5 concrete strategies, one matched to each barrier above`;
 
-    // ── CHANGE: Pass the apiKey to the callAI function ──────────────────────────
-    const content = await callAI(systemPrompt, prompt, apiKey, 'A-HEADER');
+    // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
+    // 3000 tokens is sufficient for headers, references, and objectives.
+    const content = await callAI(systemPrompt, prompt, apiKey, 'A-HEADER', 3000, apiKey2);
     
     return NextResponse.json({ content });
   } catch (error: any) {

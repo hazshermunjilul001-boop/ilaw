@@ -121,9 +121,17 @@ function parseJson<T>(raw: string, label: string): T | null {
 
 export async function POST(req: Request) {
   try {
-    // ── CHANGE: Extract apiKey from the request body ───────────────────────
-    const { content, teacherName, lessonName, learningArea, gradeSection, sessions, apiKey } =
-      await req.json();
+    // 1. Extract both keys from the request body
+    const { 
+      content, 
+      teacherName, 
+      lessonName, 
+      learningArea, 
+      gradeSection, 
+      sessions, 
+      apiKey, 
+      apiKey2 // <--- NEW: Extract the second key
+    } = await req.json();
 
     if (!content) {
       return NextResponse.json({ error: 'No lesson plan content provided' }, { status: 400 });
@@ -131,22 +139,36 @@ export async function POST(req: Request) {
 
     const sessionCount = parseInt(sessions) || 3;
 
-    // ── Call AI in parallel: one hook call + one call per session ──────────
     console.log(`[PPT] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
 
-    // ── CHANGE: Pass apiKey to the hook call ───────────────────────────────
-    const hookPromise = callAI(SYSTEM, buildHookPrompt(content), apiKey, 'PPT-HOOK', 200)
+    // 2. Pass BOTH keys to the Hook call
+    const hookPromise = callAI(
+        SYSTEM, 
+        buildHookPrompt(content), 
+        apiKey, 
+        'PPT-HOOK', 
+        200, 
+        apiKey2 // <--- Pass 2nd key here
+      )
       .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
       .catch(() => null);
 
-    // ── CHANGE: Pass apiKey to the session loop calls ───────────────────────
+    // 3. Pass BOTH keys to the Session calls
     const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
-      callAI(SYSTEM, buildSessionPrompt(content, i + 1, sessionCount), apiKey, `PPT-S${i + 1}`, 3000)
+      callAI(
+        SYSTEM, 
+        buildSessionPrompt(content, i + 1, sessionCount), 
+        apiKey, 
+        `PPT-S${i + 1}`, 
+        3000,
+        apiKey2 // <--- Pass 2nd key here
+      )
         .then(raw => parseJson<any>(raw, `session${i + 1}`))
         .catch(() => null),
     );
 
     const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
+
 
     // Check that at least session 1 succeeded
     if (!sessionResults[0]) {

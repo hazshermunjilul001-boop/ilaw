@@ -11,8 +11,20 @@ import { callAI } from '../../../../lib/callAI';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    // ── CHANGE: Extract apiKey from the request body ───────────────────────
-    const { lessonName, learningArea, teacherName, gradeSection, competency, sessions, classroomDetails, schoolCity, apiKey } = body;
+    
+    // ── CHANGE: Extract apiKey and apiKey2 from the request body ─────────
+    const { 
+      lessonName, 
+      learningArea, 
+      teacherName, 
+      gradeSection, 
+      competency, 
+      sessions, 
+      classroomDetails, 
+      schoolCity, 
+      apiKey,
+      apiKey2 // <--- ADDED
+    } = body;
 
     const city = schoolCity?.trim() || 'their city';
     const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
@@ -149,10 +161,11 @@ OPPORTUNITIES_FOR_INTEGRATION
 **${L.values}:** • Identify 2 explicit moments where Filipino core values are actively reinforced.
 **${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
 
-    // ── CHANGE: Pass apiKey to the callAI function for both parts ──────────
-    // Run B and C in parallel — each is fast enough to fit within 60s together.
-    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON');
-    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW');
+    // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
+    // Run B and C in parallel.
+    // Part B is shorter, Part C is much longer.
+    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2);
+    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2);
 
     return NextResponse.json({ content: partB + '\n\n' + partC });
   } catch (error: any) {

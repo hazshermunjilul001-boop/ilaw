@@ -15,17 +15,28 @@ export default function Home() {
 
   // ── NEW: State for BYOK (Bring Your Own Key) ────────────────────────
   const [apiKey, setApiKey] = useState('');
+  const [apiKey2, setApiKey2] = useState(''); // <--- ADDED: State for 2nd Key
 
-  // Load API key from LocalStorage on page load so the teacher doesn't have to re-enter it
+  // Load API keys from LocalStorage on page load
   useEffect(() => {
     const savedKey = localStorage.getItem('ilaw_groq_api_key');
     if (savedKey) setApiKey(savedKey);
+
+    const savedKey2 = localStorage.getItem('ilaw_groq_api_key_2'); // <--- ADDED
+    if (savedKey2) setApiKey2(savedKey2);
   }, []);
 
   const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setApiKey(val);
-    localStorage.setItem('ilaw_groq_api_key', val); // Save to browser
+    localStorage.setItem('ilaw_groq_api_key', val);
+  };
+
+  // <--- ADDED: Handler for 2nd Key
+  const handleKey2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setApiKey2(val);
+    localStorage.setItem('ilaw_groq_api_key_2', val);
   };
 
   const [loading, setLoading] = useState(false);
@@ -47,7 +58,7 @@ export default function Home() {
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
-  // ── UPDATED handleGenerate to send API Key ────────────────────────────
+  // ── UPDATED handleGenerate to send BOTH API Keys ─────────────────────
   const handleGenerate = async () => {
     setLoading(true);
     setStatus('generating');
@@ -58,8 +69,8 @@ export default function Home() {
     }, 7000);
 
     try {
-      // Prepare payload including the API Key
-      const payload = { ...form, apiKey };
+      // Prepare payload including BOTH API Keys
+      const payload = { ...form, apiKey, apiKey2 }; // <--- ADDED apiKey2
 
       // ── 3 sequential API calls ──
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
@@ -140,7 +151,7 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── VALIDATION: Check if API Key is present too ────────────────────────
+  // ── VALIDATION: Check if Primary API Key is present ───────────────────
   const allFilled =
     form.lessonName &&
     form.learningArea &&
@@ -149,7 +160,7 @@ export default function Home() {
     form.sessions &&
     form.competency &&
     form.schoolCity &&
-    apiKey; // <--- NEW CHECK: Require API Key
+    apiKey; // Only primary key is strictly required
 
   // ── Field definitions ──
   const fields = [
@@ -651,11 +662,11 @@ export default function Home() {
               ✏️ Lesson Details
             </div>
 
-            {/* ── NEW: API KEY INPUT ── */}
+            {/* ── API KEY INPUTS ── */}
             <div className="field-group field-full" style={{ marginBottom: 20, padding: 16, background: '#f5f3ff', borderRadius: 12, border: '1px solid #ddd6fe' }}>
               <label className="field-label" style={{ color: '#5b21b6' }}>
                 <span className="icon">🔑</span>
-                Groq API Key <span className="req">*</span>
+                Primary Groq API Key <span className="req">*</span>
               </label>
               <input
                 type="password"
@@ -665,10 +676,25 @@ export default function Home() {
                 onChange={handleKeyChange}
                 style={{ background: '#fff', borderColor: '#c4b5fd' }}
               />
-              <p className="req-note" style={{ marginTop: 8, color: '#6d28d9' }}>
-                Required to generate. Get a free key at <a href="https://console.groq.com" target="_blank" rel="noreferrer">console.groq.com</a>. <br/>
-                Your key is saved securely in your browser and never shared.
-              </p>
+              
+              {/* ── NEW: SECONDARY API KEY INPUT ── */}
+              <div style={{ marginTop: 12 }}>
+                 <label className="field-label" style={{ color: '#6d28d9' }}>
+                  <span className="icon">🔑</span>
+                  Secondary Groq API Key (Optional)
+                </label>
+                <input
+                  type="password"
+                  className="field-input"
+                  placeholder="gsk_... (Backup key for heavy usage)"
+                  value={apiKey2}
+                  onChange={handleKey2Change}
+                  style={{ background: '#fff', borderColor: '#ddd6fe', fontSize: '13px' }}
+                />
+                <p className="req-note" style={{ marginTop: 6, color: '#6d28d9' }}>
+                  Used if the primary key hits rate limits. Increases reliability.
+                </p>
+              </div>
             </div>
 
             <p className="req-note" style={{ marginBottom: 18 }}>
@@ -820,7 +846,8 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
-                                apiKey: apiKey, // <--- ADDED: Send key to PPT route
+                                apiKey: apiKey,
+                                apiKey2: apiKey2, // <--- ADDED: Send 2nd key
                               }),
                             });
                             if (!res.ok) {
@@ -869,7 +896,8 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
-                                apiKey: apiKey, // <--- ADDED: Send key even if they don't donate
+                                apiKey: apiKey,
+                                apiKey2: apiKey2, // <--- ADDED: Send 2nd key
                               }),
                             });
                             if (!res.ok) {
