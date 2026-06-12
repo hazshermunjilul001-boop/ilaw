@@ -27,13 +27,16 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
+    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea);
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
 
+    // ── REPLACE THIS BLOCK ───────────────────────────────────────────────
     const lang = isFilipino
-      ? 'FILIPINO/TAGALOG. Lahat ng salita, subheading, at paliwanag ay sa Filipino. Bawal ang Ingles maliban sa ALL CAPS section keys at teknikal na termino.'
-      : 'ENGLISH only. No Filipino/Tagalog words anywhere except ALL CAPS section keys.';
+      ? 'FILIPINO/TAGALOG ONLY. Write entirely in Filipino. Do not use English words except for ALL CAPS section keys and unavoidable technical terms.'
+      : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya. Write entirely in English. When using Davao City context, use English names (e.g., "Davao City Hall", not "Gobyerno ng Davao"). Do NOT use local dialect words.';
+    // ────────────────────────────────────────────────────────────────────
 
+    const aiNote = isFilipino
     const L = isFilipino ? {
       session:       'SESYON',
       materials:     'Mga Kagamitan',

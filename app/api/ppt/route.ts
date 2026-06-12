@@ -144,7 +144,7 @@ export async function POST(req: Request) {
     }
 
     // ── NEW: Determine Language for PPT ────────────────────────────────
-    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea || '');
+    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea || '');
     
     const langRules = isFilipino
       ? 'Write in FILIPINO/TAGALOG. Use simple, student-friendly Filipino words.'
