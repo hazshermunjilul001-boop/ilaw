@@ -1,6 +1,6 @@
 // app/api/ppt/route.ts
 // Server-side only — generates student-facing PowerPoint from LP content.
-// FIX: AI call is now split per-session to avoid JSON truncation on large outputs.
+// UPDATE: Now supports English and Filipino based on the Learning Area.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -22,12 +22,16 @@ CRITICAL RULES:
 - Include actual numbers, equations, and Davao City contexts from the LP.
 - Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.`;
 
+// ── UPDATED FUNCTION: Added langRules parameter ─────────────────────
 function buildSessionPrompt(
   content: string,
   sessionNum: number,
   sessionCount: number,
+  langRules: string, // <--- NEW
 ): string {
   return `Here is a complete ILAW Lesson Plan. Transform Session ${sessionNum} of ${sessionCount} into student-facing PowerPoint slide content.
+
+LANGUAGE RULE: ${langRules}
 
 LESSON PLAN CONTENT:
  ${content.slice(0, 10000)}
@@ -96,9 +100,12 @@ Focus on Session ${sessionNum}. Output ONLY valid JSON for this single session o
 }`;
 }
 
-function buildHookPrompt(content: string): string {
+// ── UPDATED FUNCTION: Added langRules parameter ─────────────────────
+function buildHookPrompt(content: string, langRules: string): string { // <--- NEW
   return `Here is an ILAW Lesson Plan. Respond with ONLY a single JSON object, no markdown:
 {"lessonHook": "One surprising fact or question to open the presentation (max 25 words)"}
+
+LANGUAGE RULE: ${langRules}
 
 LESSON PLAN CONTENT:
  ${content.slice(0, 3000)}`;
@@ -121,7 +128,6 @@ function parseJson<T>(raw: string, label: string): T | null {
 
 export async function POST(req: Request) {
   try {
-    // 1. Extract both keys from the request body
     const { 
       content, 
       teacherName, 
@@ -130,38 +136,45 @@ export async function POST(req: Request) {
       gradeSection, 
       sessions, 
       apiKey, 
-      apiKey2 // <--- NEW: Extract the second key
+      apiKey2 
     } = await req.json();
 
     if (!content) {
       return NextResponse.json({ error: 'No lesson plan content provided' }, { status: 400 });
     }
 
+    // ── NEW: Determine Language for PPT ────────────────────────────────
+    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea || '');
+    
+    const langRules = isFilipino
+      ? 'Write in FILIPINO/TAGALOG. Use simple, student-friendly Filipino words.'
+      : 'Write in ENGLISH only. No Filipino words.';
+
     const sessionCount = parseInt(sessions) || 3;
 
     console.log(`[PPT] Starting parallel AI calls: 1 hook + ${sessionCount} sessions`);
 
-    // 2. Pass BOTH keys to the Hook call
+    // ── Pass langRules to Hook call ─────────────────────────────────────
     const hookPromise = callAI(
         SYSTEM, 
-        buildHookPrompt(content), 
+        buildHookPrompt(content, langRules), // <--- PASS RULES
         apiKey, 
         'PPT-HOOK', 
         200, 
-        apiKey2 // <--- Pass 2nd key here
+        apiKey2 
       )
       .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
       .catch(() => null);
 
-    // 3. Pass BOTH keys to the Session calls
+    // ── Pass langRules to Session calls ───────────────────────────────────
     const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
       callAI(
         SYSTEM, 
-        buildSessionPrompt(content, i + 1, sessionCount), 
+        buildSessionPrompt(content, i + 1, sessionCount, langRules), // <--- PASS RULES
         apiKey, 
         `PPT-S${i + 1}`, 
         3000,
-        apiKey2 // <--- Pass 2nd key here
+        apiKey2 
       )
         .then(raw => parseJson<any>(raw, `session${i + 1}`))
         .catch(() => null),
@@ -169,8 +182,6 @@ export async function POST(req: Request) {
 
     const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
 
-
-    // Check that at least session 1 succeeded
     if (!sessionResults[0]) {
       return NextResponse.json(
         { error: 'AI failed to generate slide content. Please try again.' },
