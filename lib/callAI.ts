@@ -1,7 +1,8 @@
 // lib/callAI.ts
+// Optimized for BYOK (Bring Your Own Key) strategy.
 import Groq from 'groq-sdk';
 
-// Server-side fallback keys
+// Server-side fallback keys.
 export const SERVER_FALLBACK_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
@@ -10,53 +11,54 @@ export const SERVER_FALLBACK_KEYS = [
   process.env.GROQ_API_KEY_5,
 ].map(k => k?.trim()).filter((k): k is string => !!k);
 
+console.log('[callAI] Module loaded. SERVER_FALLBACK_KEYS:', SERVER_FALLBACK_KEYS.length);
+
 export async function callAI(
   systemPrompt: string,
   userPrompt: string,
   userApiKey: string,
   callLabel: string,
-  maxTok = 4096, // Reduced default to prevent timeouts
-  userApiKey2?: string // <--- NEW: Optional Second Key
+  maxTok = 8192,
+  userApiKey2?: string,
 ): Promise<string> {
   
-  // ── STEP 1: BUILD KEY PRIORITY LIST ───────────────────────────────
+  // ── STEP 1: BUILD KEY PRIORITY LIST ───────────────────────────────────────
   const keysToTry: string[] = [];
   
   if (userApiKey && userApiKey.trim() !== '') {
     keysToTry.push(userApiKey.trim());
   }
-  
-  // Add second user key if provided (Helps with rate limits)
+
   if (userApiKey2 && userApiKey2.trim() !== '') {
     keysToTry.push(userApiKey2.trim());
   }
 
-  // Add server fallbacks last
   if (SERVER_FALLBACK_KEYS.length > 0) {
     keysToTry.push(...SERVER_FALLBACK_KEYS);
   }
 
   if (keysToTry.length === 0) {
-    throw new Error('CRITICAL: No API Key provided.');
+    throw new Error('CRITICAL: No API Key provided by user and no Server keys found.');
   }
 
-  // ── STEP 2: SMART TRUNCATION ───────────────────────────────────────
-  // 70b model can handle more context, 8b needs less.
-  // We check the user prompt size to decide how much to cut.
-  const MAX_USER_CHARS_LARGE = 6000; // For 70b
-  const MAX_USER_CHARS_SMALL = 2500; // For 8b
-  
-  let safeSystemPrompt = systemPrompt.length > 1500 ? systemPrompt.slice(0, 1500) + "..." : systemPrompt;
-  let safeUserPrompt = userPrompt;
+  // ── STEP 2: AGGRESSIVE TRUNCATION ────────────────────────────────────────
+  const MAX_SYSTEM_CHARS = 1500;
+  const MAX_USER_CHARS_LARGE = 6000; 
+  const MAX_USER_CHARS_SMALL = 2500; 
 
-  // Initial truncation to safe limits (Start high, will be cut per model)
+  let safeSystemPrompt = systemPrompt;
+  if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
+    console.warn(`[${callLabel}] System Prompt too long (${safeSystemPrompt.length}), truncating to ${MAX_SYSTEM_CHARS}.`);
+    safeSystemPrompt = safeSystemPrompt.slice(0, MAX_SYSTEM_CHARS) + "...";
+  }
+
+  let safeUserPrompt = userPrompt;
   if (safeUserPrompt.length > MAX_USER_CHARS_LARGE) {
-    console.warn(`[${callLabel}] Prompt very long (${safeUserPrompt.length}), pre-truncating.`);
+    console.warn(`[${callLabel}] User Prompt too long (${safeUserPrompt.length}), truncating to ${MAX_USER_CHARS_LARGE}.`);
     safeUserPrompt = safeUserPrompt.slice(0, MAX_USER_CHARS_LARGE) + "...";
   }
 
-  // ── STEP 3: EXECUTE GENERATION ─────────────────────────────────────
-  // We prioritize the smarter model (70b) first, but fallback to 8b if needed.
+  // ── STEP 3: EXECUTE GENERATION ─────────────────────────────────────────────
   const models = [
     { name: 'llama-3.3-70b-versatile', limit: MAX_USER_CHARS_LARGE },
     { name: 'llama-3.1-8b-instant', limit: MAX_USER_CHARS_SMALL }
@@ -64,8 +66,8 @@ export async function callAI(
 
   for (let i = 0; i < keysToTry.length; i++) {
     const apiKey = keysToTry[i];
-    const isUserKey = (i < 2); // First 2 keys are user keys
-    const keySource = isUserKey ? "User Key" : "Server Fallback";
+    const isUserKey = (i < 2); 
+    const keySource = isUserKey ? "User Key" : "Server Backup Key";
 
     for (const model of models) {
       try {
@@ -80,7 +82,7 @@ export async function callAI(
 
         const groqClient = new Groq({ 
           apiKey,
-          timeout: 55000, // <--- CRITICAL FIX: Prevents Vercel 504 Timeout
+          timeout: 55000, 
         });
 
         const completion = await groqClient.chat.completions.create({
@@ -89,7 +91,7 @@ export async function callAI(
             { role: 'system', content: safeSystemPrompt },
             { role: 'user', content: promptForModel },
           ],
-          temperature: 0.6, // Slightly lower temp for more stable JSON
+          temperature: 0.6,
           max_tokens: maxTok > 8000 ? 8000 : maxTok,
         });
 
@@ -102,21 +104,20 @@ export async function callAI(
         const status = err?.status;
         const message = err?.message;
 
-        // 1. Invalid Key (401): Discard and try next key
+        // 1. Invalid Key (401): Discard and try next key.
         if (status === 401) {
-          console.warn(`[${callLabel}] Invalid Key (401). Trying next key.`);
+          console.warn(`[${callLabel}] Invalid Key (401) for ${keySource}. Discarding key.`);
           break; 
         }
 
-        // 2. Rate Limit (429): Try next model (or key if models exhausted)
+        // 2. Rate Limit (429): WAIT 3 SECONDS then retry.
         if (status === 429) {
-          console.warn(`[${callLabel}] Rate limit (429) on ${model.name}. Retrying...`);
-          // Add a tiny delay to help the bucket refill
-          await new Promise(r => setTimeout(r, 500)); 
+          console.warn(`[${callLabel}] Rate limit (429) on ${model.name}. Waiting 3s then retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 3000)); // <--- INCREASED TO 3000ms
           continue; 
         }
         
-        // 3. Context Length (413): This model is too small for the text. Try next model.
+        // 3. Context Length (413): Try next model.
         if (status === 413) {
            console.warn(`[${callLabel}] Context overflow (413) on ${model.name}. Trying next model...`);
            continue;
@@ -135,7 +136,7 @@ export async function callAI(
   }
 
   throw new Error(
-    `Generation failed. Please check your API Key. ` +
-    `If using your own key, it might be invalid or rate-limited.`
+    `Generation failed. Please check your API Key in settings. ` +
+    `If using your own key, it may be invalid or rate-limited.`
   );
 }
