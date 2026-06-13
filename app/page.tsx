@@ -753,6 +753,7 @@ export default function Home() {
               {!allFilled && !loading && (
                 <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
                   Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
+                  "If you get an error, wait 1 minute before trying again. The system needs to cool down."
                 </p>
               )}
 
