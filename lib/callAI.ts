@@ -110,11 +110,10 @@ export async function callAI(
           break; 
         }
 
-        // 2. Rate Limit (429): WAIT 3 SECONDS then retry.
+        // 2. Rate Limit (429): SWITCH KEYS IMMEDIATELY (Do NOT wait).
         if (status === 429) {
-          console.warn(`[${callLabel}] Rate limit (429) on ${model.name}. Waiting 3s then retrying...`);
-          await new Promise(resolve => setTimeout(resolve, 3000)); // <--- INCREASED TO 3000ms
-          continue; 
+          console.warn(`[${callLabel}] Rate limit (429) on ${model.name} via ${keySource}. Switching keys immediately...`);
+          break; // Breaks out of model loop, goes to next key in outer loop
         }
         
         // 3. Context Length (413): Try next model.
