@@ -750,13 +750,16 @@ export default function Home() {
                 )}
               </button>
 
-              {!allFilled && !loading && 
-                <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
-                  Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
-                <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
-                  <strong>"If you get an error, wait 1 minute before trying again. The system needs to cool down."</strong>
-                </p>
-              }
+              {!allFilled && !loading && (
+                <>
+                  <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
+                    Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
+                  </p>
+                  <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
+                    <strong>"If you get an error, wait 1 minute before trying again. The system needs to cool down."</strong>
+                  </p>
+                </>
+              )}
 
               {/* Generate Slides button — appears after LP is generated */}
               {generatedContent && !loading && (
