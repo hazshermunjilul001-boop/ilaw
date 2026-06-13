@@ -696,6 +696,28 @@ export default function Home() {
                 </p>
               </div>
 
+              {/* ── ADDED TIP BOX ── */}
+              <div style={{
+                 marginTop: 12,
+                 padding: '10px 12px',
+                 background: '#ffffff',
+                 border: '1px dashed #c4b5fd',
+                 borderRadius: 8,
+                 fontSize: '11px',
+                 color: '#4c1d95',
+                 lineHeight: 1.5
+              }}>
+                 <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    💡 Recommended Setup
+                 </div>
+                 <div style={{ marginBottom: 4 }}>
+                    <strong>Casual Use:</strong> Using 2 keys from 1 email is fine. It prevents the app from crashing if one key fails.
+                 </div>
+                 <div>
+                    <strong>Heavy Use:</strong> Create a second Groq account (using a different email or +alias) and use that key as your Secondary API Key. This makes the app extremely powerful and efficient.
+                 </div>
+              </div>
+
               {/* ── ADDED INFO TEXT ── */}
               <p style={{ fontSize: 11.5, color: '#5b21b6', margin: '12px 0 0 0', lineHeight: 1.5, opacity: 0.85 }}>
                 Required to generate. Get a free key at{' '}
