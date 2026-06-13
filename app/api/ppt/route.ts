@@ -111,17 +111,49 @@ LESSON PLAN CONTENT:
  ${content.slice(0, 3000)}`;
 }
 
-function parseJson<T>(raw: string, label: string): T | null {
+// ── ROBUST JSON PARSER ───────────────────────────────────────────────
+function parseJson(raw: string, label: string): any | null {
+  if (!raw) return null;
+
+  // 1. Remove Markdown code blocks (```json ... ```)
+  let clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+
+  // 2. Try to fix common AI errors (Trailing commas)
+  clean = clean.replace(/,\s*([\]}])/g, '$1');
+
+  // 3. Attempt to find and parse JSON
   try {
-    const clean = raw
-      .replace(/```json\s*/gi, '')
-      .replace(/```\s*/g, '')
-      .trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('No JSON object found');
-    return JSON.parse(match[0]) as T;
+    // Try parsing the whole string first
+    return JSON.parse(clean);
   } catch (e) {
-    console.error(`[PPT] JSON parse failed for ${label}. Raw: ${raw.slice(0, 300)}`);
+    // If that fails, try to find the first JSON Object { ... } or Array [ ... ]
+    const objectMatch = clean.match(/\{[\s\S]*\}/);
+    const arrayMatch = clean.match(/\[[\s\S]*\]/);
+
+    let candidate = objectMatch ? objectMatch[0] : (arrayMatch ? arrayMatch[0] : null);
+
+    if (candidate) {
+      try {
+        const parsed = JSON.parse(candidate);
+        
+        // VALIDATION: Ensure it has the keys we expect (Session structure)
+        // The AI sometimes returns an Array of Slides instead of a Session Object.
+        // We check for "sessionNum" to ensure we got the right format.
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+             if (parsed.sessionNum || parsed.lessonHook) {
+               return parsed;
+             }
+        }
+
+        console.warn(`[PPT] Parsed JSON but structure is wrong for ${label}. Expected Object, got structure. Raw: ${clean.slice(0, 200)}`);
+        return null; 
+      } catch (innerErr) {
+        console.error(`[PPT] JSON parse failed for ${label}. Raw: ${clean.slice(0, 300)}`);
+        return null;
+      }
+    }
+
+    console.error(`[PPT] No JSON found in response for ${label}. Raw: ${clean.slice(0, 300)}`);
     return null;
   }
 }
@@ -163,7 +195,7 @@ export async function POST(req: Request) {
         200, 
         apiKey2 
       )
-      .then(raw => parseJson<{ lessonHook: string }>(raw, 'hook'))
+      .then(raw => parseJson(raw, 'hook'))
       .catch(() => null);
 
     // ── Pass langRules to Session calls ───────────────────────────────────
@@ -176,22 +208,30 @@ export async function POST(req: Request) {
         3000,
         apiKey2 
       )
-        .then(raw => parseJson<any>(raw, `session${i + 1}`))
+        .then(raw => parseJson(raw, `session${i + 1}`))
         .catch(() => null),
     );
 
     const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
 
-    if (!sessionResults[0]) {
+    // ── IMPROVED ERROR HANDLING ─────────────────────────────────────────
+    // Filter out nulls (failed generations) instead of creating dummy objects
+    const validSessions = sessionResults.filter(s => s !== null);
+
+    if (validSessions.length === 0) {
       return NextResponse.json(
-        { error: 'AI failed to generate slide content. Please try again.' },
+        { error: 'AI failed to generate slide content for any session. Please try again.' },
         { status: 500 },
       );
     }
 
+    if (validSessions.length < sessionCount) {
+      console.warn(`[PPT] Only generated ${validSessions.length} out of ${sessionCount} sessions.`);
+    }
+
     const slideData = {
-      lessonHook: hookData?.lessonHook ?? '',
-      sessions: sessionResults.map((s, i) => s ?? { sessionNum: i + 1 }),
+      lessonHook: hookData?.lessonHook ?? 'Welcome to today\'s lesson!',
+      sessions: validSessions, // Only include successful sessions
     };
 
     console.log(`[PPT] Slide data ready. Sessions: ${slideData.sessions.length}`);
