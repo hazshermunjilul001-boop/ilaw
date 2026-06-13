@@ -695,6 +695,20 @@ export default function Home() {
                   Used if the primary key hits rate limits. Increases reliability.
                 </p>
               </div>
+
+              {/* ── ADDED INFO TEXT ── */}
+              <p style={{ fontSize: 11.5, color: '#5b21b6', margin: '12px 0 0 0', lineHeight: 1.5, opacity: 0.85 }}>
+                Required to generate. Get a free key at{' '}
+                <a 
+                  href="https://console.groq.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ color: '#4c1d95', textDecoration: 'underline', fontWeight: 600 }}
+                >
+                  console.groq.com
+                </a>
+                . Your key is saved securely in your browser and never shared.
+              </p>
             </div>
 
             <p className="req-note" style={{ marginBottom: 18 }}>
