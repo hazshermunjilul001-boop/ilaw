@@ -750,13 +750,13 @@ export default function Home() {
                 )}
               </button>
 
-              {!allFilled && !loading && (
+              {!allFilled && !loading && 
                 <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
                   Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
                 <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
                   <strong>"If you get an error, wait 1 minute before trying again. The system needs to cool down."</strong>
                 </p>
-              )}
+              }
 
               {/* Generate Slides button — appears after LP is generated */}
               {generatedContent && !loading && (
@@ -953,7 +953,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-          </div>
+
 
           {/* ── FOOTER ── */}
           <footer className="footer">
@@ -962,7 +962,7 @@ export default function Home() {
               ILAW Framework · DO 016 s.2026 · SY 2026–2027 · Created by <strong>Hazsher Briz Munjilul</strong>
             </p>
           </footer>
-
+          </div>
         </div>
       </div>
 
