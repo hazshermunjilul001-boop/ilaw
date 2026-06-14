@@ -18,7 +18,7 @@ const fullB = { top: solid(6), bottom: solid(6), left: solid(6), right: solid(6)
 const thinB = { top: solid(3, 'AAAAAA'), bottom: solid(3, 'AAAAAA'), left: solid(3, 'AAAAAA'), right: solid(3, 'AAAAAA') };
 
 function isFilipinoPH(learningArea: string): boolean {
-  return /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mapeh|mother tongue|mtb|epp/i.test(learningArea);
+  return /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea);
 }
 
 interface TemplateLabels {
