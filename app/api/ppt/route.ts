@@ -199,20 +199,42 @@ export async function POST(req: Request) {
       .catch(() => null);
 
     // ── Pass langRules to Session calls ───────────────────────────────────
-    const sessionPromises = Array.from({ length: sessionCount }, (_, i) =>
-      callAI(
-        SYSTEM, 
-        buildSessionPrompt(content, i + 1, sessionCount, langRules), // <--- PASS RULES
-        apiKey, 
-        `PPT-S${i + 1}`, 
-        3000,
-        apiKey2 
-      )
-        .then(raw => parseJson(raw, `session${i + 1}`))
-        .catch(() => null),
-    );
+    // ── FIXED CODE: Fires sequentially to prevent Rate Limits ────────────────
+    const sessionResults: any[] = [];
 
-    const [hookData, ...sessionResults] = await Promise.all([hookPromise, ...sessionPromises]);
+    // We use a standard for...of loop instead of Promise.all
+    for (let i = 0; i < sessionCount; i++) {
+      console.log(`[PPT] Starting generation for Session ${i + 1}...`);
+  
+      try {
+        const raw = await callAI(
+          SYSTEM, 
+          buildSessionPrompt(content, i + 1, sessionCount, langRules),
+          apiKey, 
+          `PPT-S${i + 1}`, 
+          3000,
+          apiKey2 
+        );
+    
+        const parsed = parseJson(raw, `session${i + 1}`);
+        if (parsed) {
+          sessionResults.push(parsed);
+          console.log(`[PPT] Session ${i + 1} generated successfully.`);
+        } else {
+          console.warn(`[PPT] Session ${i + 1} parsing failed, skipping.`);
+        }
+      } catch (err) {
+        console.error(`[PPT] Session ${i + 1} failed completely.`, err);
+      }
+
+      // OPTIONAL: Wait 500ms between sessions to be extra safe
+      // await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Handle the Hook Promise separately (it's just 1 request, so it's fine)
+    const hookData = await hookPromise;
+
+    console.log(`[PPT] All sessions generated. Total: ${sessionResults.length}`);
 
     // ── IMPROVED ERROR HANDLING ─────────────────────────────────────────
     // Filter out nulls (failed generations) instead of creating dummy objects
