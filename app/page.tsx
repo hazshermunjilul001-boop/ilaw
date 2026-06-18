@@ -644,6 +644,40 @@ export default function Home() {
               <span className="creator-tag">Crafted by <strong>Hazsher Briz Munjilul</strong></span>
               <span className="creator-tag" style={{ color: '#c4b5fd' }}>•</span>
               <span className="creator-tag">Powered by Groq</span>
+
+              {/* New Button - JHS Budget of Works */}
+              <a
+                href="https://drive.google.com/drive/folders/150nD7_y80SYCVNTKSbdlTZUcWOLKuO-m?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'linear-gradient(135deg, #10b981, #34d399)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '20px',
+                  padding: '7px 16px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(16,185,129,0.5)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(16,185,129,0.4)';
+                }}
+              >
+                📚 JHS Unpacked BOWs
+              </a>
+
               <button className="donate-btn" onClick={() => setShowDonation(true)}>
                 💝 Support this tool
               </button>
