@@ -59,9 +59,12 @@ export async function callAI(
   }
 
   // ── STEP 3: EXECUTE GENERATION ─────────────────────────────────────────────
+  // Updated models — replaces deprecated llama-3.3-70b-versatile and llama-3.1-8b-instant.
+  // Primary:  openai/gpt-oss-120b  (replaces llama-3.3-70b-versatile — high quality)
+  // Fallback: openai/gpt-oss-20b   (replaces llama-3.1-8b-instant — fast & cheap)
   const models = [
-    { name: 'llama-3.3-70b-versatile', limit: MAX_USER_CHARS_LARGE },
-    { name: 'llama-3.1-8b-instant', limit: MAX_USER_CHARS_SMALL }
+    { name: 'openai/gpt-oss-120b', limit: MAX_USER_CHARS_LARGE },
+    { name: 'openai/gpt-oss-20b',  limit: MAX_USER_CHARS_SMALL  },
   ];
 
   for (let i = 0; i < keysToTry.length; i++) {
@@ -102,7 +105,7 @@ export async function callAI(
         }
       } catch (err: any) {
         const status = err?.status;
-        const message = err?.message;
+        const message = err?.message ?? '';
 
         // 1. Invalid Key (401): Discard and try next key.
         if (status === 401) {
