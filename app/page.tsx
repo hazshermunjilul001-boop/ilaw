@@ -1100,7 +1100,6 @@ export default function Home() {
           </footer>
           </div>
         </div>
-      </div>
 
       {/* ── DONATION MODAL ── */}
       {showDonation && (
