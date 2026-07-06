@@ -715,23 +715,26 @@ export default function Home() {
             </div>
 
             {/* ── API KEY INPUTS ── */}
-            <div className="field-group field-full" style={{ marginBottom: 20, padding: 16, background: '#f5f3ff', borderRadius: 12, border: '1px solid #ddd6fe' }}>
-              <label>
+            <label className="field-label" style={{ color: '#5b21b6' }}>
+                <span className="icon">✨</span>
                 Google Gemini API Key <span className="req">*</span> (recommended — try this first)
               </label>
               <input
                 type="password"
+                className="field-input"
+                placeholder="Paste your Gemini API key (from aistudio.google.com)"
                 value={geminiKey}
                 onChange={handleGeminiKeyChange}
-                placeholder="Paste your Gemini API key (from aistudio.google.com)"
+                style={{ background: '#fff', borderColor: '#c4b5fd' }}
               />
-              <p className="key-help">
+              <p className="req-note" style={{ marginTop: 6, marginBottom: 16, color: '#5b21b6' }}>
                 Get a free key at{' '}
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#5b21b6', fontWeight: 600 }}>
                   aistudio.google.com/apikey
                 </a>{' '}
                 — use your existing Gmail account, no separate signup.
               </p>
+
               <label className="field-label" style={{ color: '#5b21b6' }}>
                 <span className="icon">🔑</span>
                 Primary Groq API Key <span className="req">*</span>
@@ -744,8 +747,8 @@ export default function Home() {
                 onChange={handleKeyChange}
                 style={{ background: '#fff', borderColor: '#c4b5fd' }}
               />
-              
-              {/* ── NEW: SECONDARY API KEY INPUT ── */}
+
+              {/* ── SECONDARY GROQ API KEY ── */}
               <div style={{ marginTop: 12 }}>
                  <label className="field-label" style={{ color: '#6d28d9' }}>
                   <span className="icon">🔑</span>
@@ -761,6 +764,28 @@ export default function Home() {
                 />
                 <p className="req-note" style={{ marginTop: 6, color: '#6d28d9' }}>
                   Used if the primary key hits rate limits. Increases reliability.
+                </p>
+              </div>
+
+              {/* ── OPENROUTER API KEY (Optional 3rd fallback) ── */}
+              <div style={{ marginTop: 12 }}>
+                 <label className="field-label" style={{ color: '#6d28d9' }}>
+                  <span className="icon">🔑</span>
+                  OpenRouter API Key (Optional 3rd fallback)
+                </label>
+                <input
+                  type="password"
+                  className="field-input"
+                  placeholder="sk-or-... (Used only if Gemini and Groq both fail)"
+                  value={openrouterKey}
+                  onChange={handleOpenrouterKeyChange}
+                  style={{ background: '#fff', borderColor: '#ddd6fe', fontSize: '13px' }}
+                />
+                <p className="req-note" style={{ marginTop: 6, color: '#6d28d9' }}>
+                  Last-resort fallback. Get a free key at{' '}
+                  <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#6d28d9', fontWeight: 600 }}>
+                    openrouter.ai/keys
+                  </a>.
                 </p>
               </div>
 
