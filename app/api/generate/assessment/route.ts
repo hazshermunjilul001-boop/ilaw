@@ -23,7 +23,9 @@ export async function POST(req: Request) {
       classroomDetails, 
       schoolCity, 
       apiKey,
-      apiKey2 // <--- ADDED
+      apiKey2,
+      geminiKey,      // <--- ADDED
+      openrouterKey, // <--- ADDED
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
@@ -116,7 +118,7 @@ Write a complete entry for EVERY session listed in SESSIONS above:
 
     // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
     // 5000 tokens set to accommodate detailed rubrics for multiple sessions.
-    const content = await callAI(systemPrompt, prompt, apiKey, 'D-ASSESSMENT', 5000, apiKey2);
+    const content = await callAI(systemPrompt, prompt, apiKey, 'D-ASSESSMENT', 5000, apiKey2, geminiKey, openrouterKey);
     
     return NextResponse.json({ content });
   } catch (error: any) {

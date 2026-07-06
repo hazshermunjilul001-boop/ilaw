@@ -23,7 +23,9 @@ export async function POST(req: Request) {
       classroomDetails, 
       schoolCity, 
       apiKey,
-      apiKey2 // <--- ADDED
+      apiKey2,
+      geminiKey,      // <--- ADDED
+      openrouterKey,  // <--- ADDED // <--- ADDED
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
@@ -99,7 +101,7 @@ LEARNER_CONTEXT
 
     // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
     // 3000 tokens is sufficient for headers, references, and objectives.
-    const content = await callAI(systemPrompt, prompt, apiKey, 'A-HEADER', 3000, apiKey2);
+    const content = await callAI(systemPrompt, prompt, apiKey, 'A-HEADER', 3000, apiKey2, geminiKey, openrouterKey);
     
     return NextResponse.json({ content });
   } catch (error: any) {

@@ -13,18 +13,31 @@ export default function Home() {
     schoolCity: '',
   });
 
-  // ── NEW: State for BYOK (Bring Your Own Key) ────────────────────────
-  const [apiKey, setApiKey] = useState('');
-  const [apiKey2, setApiKey2] = useState(''); // <--- ADDED: State for 2nd Key
+  // ── BYOK: Gemini first, then Groq, then OpenRouter ──────────────────
+  const [geminiKey, setGeminiKey] = useState('');
+  const [apiKey, setApiKey] = useState('');       // Groq primary
+  const [apiKey2, setApiKey2] = useState('');     // Groq secondary
+  const [openrouterKey, setOpenrouterKey] = useState('');
 
-  // Load API keys from LocalStorage on page load
   useEffect(() => {
+    const savedGemini = localStorage.getItem('ilaw_gemini_api_key');
+    if (savedGemini) setGeminiKey(savedGemini);
+
     const savedKey = localStorage.getItem('ilaw_groq_api_key');
     if (savedKey) setApiKey(savedKey);
 
-    const savedKey2 = localStorage.getItem('ilaw_groq_api_key_2'); // <--- ADDED
+    const savedKey2 = localStorage.getItem('ilaw_groq_api_key_2');
     if (savedKey2) setApiKey2(savedKey2);
+
+    const savedOpenrouter = localStorage.getItem('ilaw_openrouter_api_key');
+    if (savedOpenrouter) setOpenrouterKey(savedOpenrouter);
   }, []);
+
+  const handleGeminiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setGeminiKey(val);
+    localStorage.setItem('ilaw_gemini_api_key', val);
+  };
 
   const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -32,11 +45,16 @@ export default function Home() {
     localStorage.setItem('ilaw_groq_api_key', val);
   };
 
-  // <--- ADDED: Handler for 2nd Key
   const handleKey2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setApiKey2(val);
     localStorage.setItem('ilaw_groq_api_key_2', val);
+  };
+
+  const handleOpenrouterKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setOpenrouterKey(val);
+    localStorage.setItem('ilaw_openrouter_api_key', val);
   };
 
   const [loading, setLoading] = useState(false);
@@ -70,7 +88,7 @@ export default function Home() {
 
     try {
       // Prepare payload including BOTH API Keys
-      const payload = { ...form, apiKey, apiKey2 }; // <--- ADDED apiKey2
+      const payload = { ...form, geminiKey, apiKey, apiKey2, openrouterKey };
 
       // ── 3 sequential API calls ──
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
@@ -698,6 +716,22 @@ export default function Home() {
 
             {/* ── API KEY INPUTS ── */}
             <div className="field-group field-full" style={{ marginBottom: 20, padding: 16, background: '#f5f3ff', borderRadius: 12, border: '1px solid #ddd6fe' }}>
+              <label>
+                Google Gemini API Key <span className="req">*</span> (recommended — try this first)
+              </label>
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={handleGeminiKeyChange}
+                placeholder="Paste your Gemini API key (from aistudio.google.com)"
+              />
+              <p className="key-help">
+                Get a free key at{' '}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                  aistudio.google.com/apikey
+                </a>{' '}
+                — use your existing Gmail account, no separate signup.
+              </p>
               <label className="field-label" style={{ color: '#5b21b6' }}>
                 <span className="icon">🔑</span>
                 Primary Groq API Key <span className="req">*</span>
@@ -921,8 +955,10 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                apiKey2: apiKey2, // <--- ADDED: Send 2nd key
+                                apiKey2: apiKey2,
+                                openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
                               }),
                             });
                             if (!res.ok) {
@@ -971,8 +1007,10 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                apiKey2: apiKey2, // <--- ADDED: Send 2nd key
+                                apiKey2: apiKey2,
+                                openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
                               }),
                             });
                             if (!res.ok) {

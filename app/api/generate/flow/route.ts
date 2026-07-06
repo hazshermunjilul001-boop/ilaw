@@ -23,7 +23,9 @@ export async function POST(req: Request) {
       classroomDetails, 
       schoolCity, 
       apiKey,
-      apiKey2 // <--- ADDED
+      apiKey2,
+      geminiKey,      // <--- ADDED
+      openrouterKey,  // <--- ADDED // <--- ADDED
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
@@ -167,8 +169,8 @@ OPPORTUNITIES_FOR_INTEGRATION
     // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
     // Run B and C in parallel.
     // Part B is shorter, Part C is much longer.
-    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2);
-    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2);
+    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2, geminiKey, openrouterKey);
+    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2, geminiKey, openrouterKey);
 
     return NextResponse.json({ content: partB + '\n\n' + partC });
   } catch (error: any) {

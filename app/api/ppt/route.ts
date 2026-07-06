@@ -168,7 +168,9 @@ export async function POST(req: Request) {
       gradeSection, 
       sessions, 
       apiKey, 
-      apiKey2 
+      apiKey2,
+      geminiKey,      // <--- ADDED
+      openrouterKey, 
     } = await req.json();
 
     if (!content) {
@@ -189,11 +191,13 @@ export async function POST(req: Request) {
     // ── Pass langRules to Hook call ─────────────────────────────────────
     const hookPromise = callAI(
         SYSTEM, 
-        buildHookPrompt(content, langRules), // <--- PASS RULES
+        buildHookPrompt(content, langRules),
         apiKey, 
         'PPT-HOOK', 
         200, 
-        apiKey2 
+        apiKey2,
+        geminiKey,      // <--- ADDED
+        openrouterKey,  // <--- ADDED
       )
       .then(raw => parseJson(raw, 'hook'))
       .catch(() => null);
@@ -213,7 +217,9 @@ export async function POST(req: Request) {
           apiKey, 
           `PPT-S${i + 1}`, 
           3000,
-          apiKey2 
+          apiKey2,
+          geminiKey,      // <--- ADDED
+          openrouterKey,  // <--- ADDED
         );
     
         const parsed = parseJson(raw, `session${i + 1}`);
