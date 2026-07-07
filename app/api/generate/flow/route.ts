@@ -167,10 +167,14 @@ OPPORTUNITIES_FOR_INTEGRATION
 **${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
 
     // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
-    // Run B and C in parallel.
-    // Part B is shorter, Part C is much longer.
-    const partB = await callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2, geminiKey, openrouterKey);
-    const partC = await callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2, geminiKey, openrouterKey);
+    // Run B and C concurrently (Promise.all) instead of sequentially.
+    // Part B is shorter, Part C is much longer — running them at the same time
+    // means total wall-clock time is roughly max(B, C) instead of B + C,
+    // which is what was previously blowing past the 60s Vercel limit.
+    const [partB, partC] = await Promise.all([
+      callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2, geminiKey, openrouterKey),
+      callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2, geminiKey, openrouterKey),
+    ]);
 
     return NextResponse.json({ content: partB + '\n\n' + partC });
   } catch (error: any) {

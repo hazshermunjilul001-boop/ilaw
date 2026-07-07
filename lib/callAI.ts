@@ -13,6 +13,21 @@ export const SERVER_FALLBACK_KEYS = [
 
 console.log('[callAI] Module loaded. SERVER_FALLBACK_KEYS:', SERVER_FALLBACK_KEYS.length);
 
+// ── TIMEOUT CONFIG ───────────────────────────────────────────────────────
+// Each individual attempt (Gemini, one Groq key/model pair, or OpenRouter)
+// gets this long before it's aborted and the code moves to the next fallback.
+// This is intentionally short: with up to ~14 possible Groq key/model
+// combinations to try, a single 55s hang used to be able to eat almost the
+// entire Vercel 60s budget on its own. Failing fast lets many more fallbacks
+// actually get a chance within the time available.
+const ATTEMPT_TIMEOUT_MS = 12000;
+
+// Overall soft budget for the whole callAI() run, checked between attempts.
+// Vercel's hard cap is 60s (maxDuration); we stop trying new fallbacks well
+// before that so we can return a clean JSON error instead of letting Vercel
+// kill the function with an opaque 504.
+const OVERALL_BUDGET_MS = 48000;
+
 // ── GEMINI CALL ──────────────────────────────────────────────────────────
 async function callGemini(
   systemPrompt: string,
@@ -24,21 +39,35 @@ async function callGemini(
   const model = 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: maxTok > 8000 ? 8000 : maxTok,
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
       },
-    }),
-  });
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: maxTok > 8000 ? 8000 : maxTok,
+        },
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`[${callLabel}] Gemini timed out after ${ATTEMPT_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
@@ -66,22 +95,36 @@ async function callOpenRouter(
 ): Promise<string> {
   const model = 'meta-llama/llama-3.3-70b-instruct:free';
 
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.6,
-      max_tokens: maxTok > 8000 ? 8000 : maxTok,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.6,
+        max_tokens: maxTok > 8000 ? 8000 : maxTok,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`[${callLabel}] OpenRouter timed out after ${ATTEMPT_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
@@ -111,6 +154,9 @@ export async function callAI(
   openrouterKey?: string,      // NEW — tried last
 ): Promise<string> {
 
+  const startTime = Date.now();
+  const timeLeft = () => OVERALL_BUDGET_MS - (Date.now() - startTime);
+
   const MAX_SYSTEM_CHARS = 1500;
   const MAX_USER_CHARS_LARGE = 6000;
   const MAX_USER_CHARS_SMALL = 2500;
@@ -126,7 +172,7 @@ export async function callAI(
   }
 
   // ── STEP 1: TRY GEMINI FIRST ────────────────────────────────────────────
-  if (geminiKey && geminiKey.trim() !== '') {
+  if (geminiKey && geminiKey.trim() !== '' && timeLeft() > 0) {
     try {
       console.log(`[${callLabel}] Trying Gemini (primary)...`);
       return await callGemini(safeSystemPrompt, safeUserPrompt, geminiKey.trim(), callLabel, maxTok);
@@ -147,12 +193,18 @@ export async function callAI(
     { name: 'openai/gpt-oss-20b',  limit: MAX_USER_CHARS_SMALL  },
   ];
 
+  groqLoop:
   for (let i = 0; i < keysToTry.length; i++) {
     const apiKey = keysToTry[i];
     const isUserKey = (i < 2);
     const keySource = isUserKey ? "User Key" : "Server Backup Key";
 
     for (const model of models) {
+      if (timeLeft() <= 0) {
+        console.warn(`[${callLabel}] Time budget exhausted, skipping remaining Groq attempts.`);
+        break groqLoop;
+      }
+
       try {
         let promptForModel = safeUserPrompt;
         if (promptForModel.length > model.limit) {
@@ -161,7 +213,10 @@ export async function callAI(
 
         console.log(`[${callLabel}] Trying ${model.name} via ${keySource} (Groq)...`);
 
-        const groqClient = new Groq({ apiKey, timeout: 55000 });
+        // Cap each attempt at the shorter of ATTEMPT_TIMEOUT_MS or whatever
+        // time budget remains, so one slow attempt can't eat every fallback
+        // that comes after it.
+        const groqClient = new Groq({ apiKey, timeout: Math.min(ATTEMPT_TIMEOUT_MS, Math.max(timeLeft(), 1000)) });
 
         const completion = await groqClient.chat.completions.create({
           model: model.name,
@@ -205,7 +260,7 @@ export async function callAI(
   }
 
   // ── STEP 3: LAST RESORT — OPENROUTER ────────────────────────────────────
-  if (openrouterKey && openrouterKey.trim() !== '') {
+  if (openrouterKey && openrouterKey.trim() !== '' && timeLeft() > 0) {
     try {
       console.log(`[${callLabel}] Trying OpenRouter (last resort)...`);
       return await callOpenRouter(safeSystemPrompt, safeUserPrompt, openrouterKey.trim(), callLabel, maxTok);
