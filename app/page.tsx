@@ -90,14 +90,25 @@ export default function Home() {
       // Prepare payload including BOTH API Keys
       const payload = { ...form, geminiKey, apiKey, apiKey2, openrouterKey };
 
-      // ── 3 sequential API calls ──
+      // ── 3 staggered API calls ──
+      // Spaced out (not fired all at once) so a single click doesn't spend
+      // 3 of a free-tier Gemini key's ~10-15 requests-per-minute budget in
+      // the same instant, leaving no headroom for retries.
+      const STAGGER_MS = 1200;
+      const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+      const post = (url: string) =>
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
-      const resA    = await fetch('/api/generate/header',     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const resFlow = await fetch('/api/generate/flow',       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const resD    = await fetch('/api/generate/assessment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const resA = post('/api/generate/header');
+      await delay(STAGGER_MS);
+      const resFlow = post('/api/generate/flow');
+      await delay(STAGGER_MS);
+      const resD = post('/api/generate/assessment');
 
       // Parse all three responses
-      async function parseRes(res: Response, label: string) {
+      async function parseRes(resOrPromise: Response | Promise<Response>, label: string) {
+        const res = await resOrPromise;
         const rawText = await res.text();
         let data: any = {};
         try { data = JSON.parse(rawText); } catch {
@@ -169,7 +180,10 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── VALIDATION: Check if Primary API Key is present ───────────────────
+  // ── VALIDATION: no API key is strictly required ─────────────────────
+  // Gemini is now the primary provider (server-side fallback keys cover
+  // teachers who haven't added their own). Groq is a thin last-resort
+  // backup, so it should never block generation.
   const allFilled =
     form.lessonName &&
     form.learningArea &&
@@ -177,8 +191,7 @@ export default function Home() {
     form.gradeSection &&
     form.sessions &&
     form.competency &&
-    form.schoolCity &&
-    apiKey; // Only primary key is strictly required
+    form.schoolCity;
 
   // ── Field definitions ──
   const fields = [
@@ -767,6 +780,21 @@ export default function Home() {
                 </p>
               </div>
 
+              {/* ── ADDED INFO TEXT ── */}
+              <p style={{ fontSize: 11.5, color: '#5b21b6', margin: '12px 0 0 0', lineHeight: 1.5, opacity: 0.85 }}>
+                Required to generate. Get a free key at{' '}
+                <a 
+                  href="https://console.groq.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ color: '#4c1d95', textDecoration: 'underline', fontWeight: 600 }}
+                >
+                  console.groq.com
+                </a>
+                . Your key is saved securely in your browser and never shared.
+              </p>
+            </div>
+            
               {/* ── OPENROUTER API KEY (Optional 3rd fallback) ── */}
               <div style={{ marginTop: 12 }}>
                  <label className="field-label" style={{ color: '#6d28d9' }}>
@@ -810,21 +838,6 @@ export default function Home() {
                     <strong>Heavy Use:</strong> Create a second Groq account (using a different email or +alias) and use that key as your Secondary API Key. This makes the app extremely powerful and efficient.
                  </div>
               </div>
-
-              {/* ── ADDED INFO TEXT ── */}
-              <p style={{ fontSize: 11.5, color: '#5b21b6', margin: '12px 0 0 0', lineHeight: 1.5, opacity: 0.85 }}>
-                Required to generate. Get a free key at{' '}
-                <a 
-                  href="https://console.groq.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ color: '#4c1d95', textDecoration: 'underline', fontWeight: 600 }}
-                >
-                  console.groq.com
-                </a>
-                . Your key is saved securely in your browser and never shared.
-              </p>
-            </div>
 
             <p className="req-note" style={{ marginBottom: 18 }}>
               Fields marked <span>*</span> are required to generate your lesson plan.
