@@ -13,10 +13,9 @@ export default function Home() {
     schoolCity: '',
   });
 
-  // ── BYOK: Gemini first, then Groq, then OpenRouter ──────────────────
+  // ── BYOK: Gemini (required), Groq (recommended), OpenRouter (final fallback) ──
   const [geminiKey, setGeminiKey] = useState('');
-  const [apiKey, setApiKey] = useState('');       // Groq primary
-  const [apiKey2, setApiKey2] = useState('');     // Groq secondary
+  const [apiKey, setApiKey] = useState('');       // Groq
   const [openrouterKey, setOpenrouterKey] = useState('');
 
   useEffect(() => {
@@ -25,9 +24,6 @@ export default function Home() {
 
     const savedKey = localStorage.getItem('ilaw_groq_api_key');
     if (savedKey) setApiKey(savedKey);
-
-    const savedKey2 = localStorage.getItem('ilaw_groq_api_key_2');
-    if (savedKey2) setApiKey2(savedKey2);
 
     const savedOpenrouter = localStorage.getItem('ilaw_openrouter_api_key');
     if (savedOpenrouter) setOpenrouterKey(savedOpenrouter);
@@ -43,12 +39,6 @@ export default function Home() {
     const val = e.target.value;
     setApiKey(val);
     localStorage.setItem('ilaw_groq_api_key', val);
-  };
-
-  const handleKey2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setApiKey2(val);
-    localStorage.setItem('ilaw_groq_api_key_2', val);
   };
 
   const handleOpenrouterKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,7 +78,7 @@ export default function Home() {
 
     try {
       // Prepare payload including BOTH API Keys
-      const payload = { ...form, geminiKey, apiKey, apiKey2, openrouterKey };
+      const payload = { ...form, geminiKey, apiKey, openrouterKey };
 
       // ── 3 staggered API calls ──
       // Spaced out (not fired all at once) so a single click doesn't spend
@@ -180,10 +170,11 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── VALIDATION: no API key is strictly required ─────────────────────
-  // Gemini is now the primary provider (server-side fallback keys cover
-  // teachers who haven't added their own). Groq is a thin last-resort
-  // backup, so it should never block generation.
+  // ── VALIDATION: Gemini key is required ───────────────────────────────
+  // Gemini is the primary provider and where shared-quota pressure lives.
+  // Requiring teachers to bring their own key keeps the app free and fast
+  // for everyone instead of everyone quietly riding the shared backup.
+  // Groq/OpenRouter remain optional extra-reliability add-ons.
   const allFilled =
     form.lessonName &&
     form.learningArea &&
@@ -191,7 +182,8 @@ export default function Home() {
     form.gradeSection &&
     form.sessions &&
     form.competency &&
-    form.schoolCity;
+    form.schoolCity &&
+    geminiKey;
 
   // ── Field definitions ──
   const fields = [
@@ -728,9 +720,15 @@ export default function Home() {
             </div>
 
             {/* ── API KEY INPUTS ── */}
-            <label className="field-label" style={{ color: '#5b21b6' }}>
+            <div style={{
+              padding: '10px 12px',
+              background: '#f5f3ff',
+              border: '1px solid #c4b5fd',
+              borderRadius: 8,
+            }}>
+              <label className="field-label" style={{ color: '#5b21b6', marginBottom: 4 }}>
                 <span className="icon">✨</span>
-                Google Gemini API Key <span className="req">*</span> (recommended — try this first)
+                Google Gemini API Key <span className="req">*</span> <span style={{ fontWeight: 700 }}>(required)</span>
               </label>
               <input
                 type="password"
@@ -740,66 +738,49 @@ export default function Home() {
                 onChange={handleGeminiKeyChange}
                 style={{ background: '#fff', borderColor: '#c4b5fd' }}
               />
-              <p className="req-note" style={{ marginTop: 6, marginBottom: 16, color: '#5b21b6' }}>
-                Get a free key at{' '}
+              <p className="req-note" style={{ marginTop: 6, marginBottom: 0, color: '#5b21b6' }}>
+                Required — free, takes ~2 minutes at{' '}
                 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#5b21b6', fontWeight: 600 }}>
                   aistudio.google.com/apikey
-                </a>{' '}
-                — use your existing Gmail account, no separate signup.
+                </a>
+                . Use your existing Gmail account, no separate signup. Your key stays in your browser and is never shared.
               </p>
+            </div>
 
-              <label className="field-label" style={{ color: '#5b21b6' }}>
-                <span className="icon">🔑</span>
-                Primary Groq API Key <span className="req">*</span>
-              </label>
-              <input
-                type="password"
-                className="field-input"
-                placeholder="gsk_..."
-                value={apiKey}
-                onChange={handleKeyChange}
-                style={{ background: '#fff', borderColor: '#c4b5fd' }}
-              />
-
-              {/* ── SECONDARY GROQ API KEY ── */}
-              <div style={{ marginTop: 12 }}>
-                 <label className="field-label" style={{ color: '#6d28d9' }}>
-                  <span className="icon">🔑</span>
-                  Secondary Groq API Key (Optional)
+              <div style={{
+                marginTop: 12,
+                padding: '10px 12px',
+                background: '#fff7ed',
+                border: '1px solid #fdba74',
+                borderRadius: 8,
+              }}>
+                <label className="field-label" style={{ color: '#c2410c', marginBottom: 4 }}>
+                  <span className="icon">⚡</span>
+                  Groq API Key <span style={{ fontWeight: 700 }}>(strongly recommended)</span>
                 </label>
                 <input
                   type="password"
                   className="field-input"
-                  placeholder="gsk_... (Backup key for heavy usage)"
-                  value={apiKey2}
-                  onChange={handleKey2Change}
-                  style={{ background: '#fff', borderColor: '#ddd6fe', fontSize: '13px' }}
+                  placeholder="gsk_..."
+                  value={apiKey}
+                  onChange={handleKeyChange}
+                  style={{ background: '#fff', borderColor: '#fdba74' }}
                 />
-                <p className="req-note" style={{ marginTop: 6, color: '#6d28d9' }}>
-                  Used if the primary key hits rate limits. Increases reliability.
+                <p className="req-note" style={{ marginTop: 6, marginBottom: 0, color: '#c2410c' }}>
+                  Not required, but without it, generation falls back to Gemini alone — if Gemini is
+                  busy, you'll wait longer or hit an error. Adding a free key from{' '}
+                  <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style={{ color: '#c2410c', fontWeight: 600 }}>
+                    console.groq.com
+                  </a>{' '}
+                  (~1 minute) gives you an instant backup.
                 </p>
               </div>
 
-              {/* ── ADDED INFO TEXT ── */}
-              <p style={{ fontSize: 11.5, color: '#5b21b6', margin: '12px 0 0 0', lineHeight: 1.5, opacity: 0.85 }}>
-                Required to generate. Get a free key at{' '}
-                <a 
-                  href="https://console.groq.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ color: '#4c1d95', textDecoration: 'underline', fontWeight: 600 }}
-                >
-                  console.groq.com
-                </a>
-                . Your key is saved securely in your browser and never shared.
-              </p>
-            </div>
-            
-              {/* ── OPENROUTER API KEY (Optional 3rd fallback) ── */}
+              {/* ── OPENROUTER API KEY (Final fallback) ── */}
               <div style={{ marginTop: 12 }}>
                  <label className="field-label" style={{ color: '#6d28d9' }}>
                   <span className="icon">🔑</span>
-                  OpenRouter API Key (Optional 3rd fallback)
+                  OpenRouter API Key (Optional — final fallback)
                 </label>
                 <input
                   type="password"
@@ -829,18 +810,19 @@ export default function Home() {
                  lineHeight: 1.5
               }}>
                  <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    💡 Recommended Setup
-                 </div>
-                 <div style={{ marginBottom: 4 }}>
-                    <strong>Casual Use:</strong> Using 2 keys from 1 email is fine. It prevents the app from crashing if one key fails.
+                    💡 How it works
                  </div>
                  <div>
-                    <strong>Heavy Use:</strong> Create a second Groq account (using a different email or +alias) and use that key as your Secondary API Key. This makes the app extremely powerful and efficient.
+                    Gemini is tried first, Groq is used if Gemini fails or is busy, and OpenRouter is the
+                    final fallback if both fail. Adding all three keys gives you the most reliable, fastest
+                    generations — but only Gemini is required.
                  </div>
               </div>
 
+            </div>
+
             <p className="req-note" style={{ marginBottom: 18 }}>
-              Fields marked <span>*</span> are required to generate your lesson plan.
+              Fields marked <span>*</span> (including your Gemini API key) are required to generate your lesson plan.
             </p>
 
             <div className="fields-grid">
@@ -895,7 +877,7 @@ export default function Home() {
               {!allFilled && !loading && (
                 <>
                   <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
-                    Please fill in all required fields <span>*</span> and add your <span>API Key</span> to enable generation.
+                    Please fill in all required fields <span>*</span> and add your Gemini API key to enable generation.
                   </p>
                   <p className="req-note" style={{ marginTop: 10, textAlign: 'center' }}>
                     <strong>"If you get an error, wait 1 minute before trying again. The system needs to cool down."</strong>
@@ -995,7 +977,6 @@ export default function Home() {
                                 sessions: form.sessions,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                apiKey2: apiKey2,
                                 openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
                               }),
                             });
@@ -1047,7 +1028,6 @@ export default function Home() {
                                 sessions: form.sessions,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                apiKey2: apiKey2,
                                 openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
                               }),
                             });
