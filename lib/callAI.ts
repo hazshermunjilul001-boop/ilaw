@@ -1,5 +1,5 @@
 // lib/callAI.ts
-// Strategy: Gemini (primary, multi-key) -> Groq (thin backup, most models decommissioned) -> OpenRouter (last resort)
+// Strategy: Gemini (primary, multi-model, multi-key) -> Groq (thin backup) -> OpenRouter (last resort)
 import Groq from 'groq-sdk';
 
 // ── SERVER FALLBACK KEYS ─────────────────────────────────────────────────
@@ -25,6 +25,13 @@ console.log(
   '| Groq fallback keys:', GROQ_SERVER_FALLBACK_KEYS.length,
 );
 
+// ── GEMINI MODELS, TRIED IN ORDER PER KEY ────────────────────────────────
+// Quotas are tracked separately per model. flash-lite currently carries a
+// much higher free-tier RPM/RPD ceiling than flash, so trying it first
+// absorbs the vast majority of first-time-user bursts before ever touching
+// flash's tighter limit.
+const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+
 // ── TIMEOUT / BUDGET CONFIG ──────────────────────────────────────────────
 const ATTEMPT_TIMEOUT_MS = 10000;   // per single attempt
 const MINUTE_BACKOFF_MS = 1500;     // short wait before retrying an RPM/TPM 429 once
@@ -45,15 +52,15 @@ function sleep(ms: number) {
   return new Promise(res => setTimeout(res, ms));
 }
 
-// ── GEMINI CALL (single attempt) ─────────────────────────────────────────
+// ── GEMINI CALL (single attempt, single model) ────────────────────────────
 async function callGeminiOnce(
   systemPrompt: string,
   userPrompt: string,
   apiKey: string,
   callLabel: string,
   maxTok: number,
+  model: string,
 ): Promise<string> {
-  const model = 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const controller = new AbortController();
@@ -73,7 +80,7 @@ async function callGeminiOnce(
     });
   } catch (err: any) {
     if (err?.name === 'AbortError') {
-      throw new Error(`[${callLabel}] Gemini timed out after ${ATTEMPT_TIMEOUT_MS}ms`);
+      throw new Error(`[${callLabel}] Gemini (${model}) timed out after ${ATTEMPT_TIMEOUT_MS}ms`);
     }
     throw err;
   } finally {
@@ -82,7 +89,7 @@ async function callGeminiOnce(
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
-    const err: any = new Error(`Gemini error ${res.status}: ${errText}`);
+    const err: any = new Error(`Gemini (${model}) error ${res.status}: ${errText}`);
     err.status = res.status;
     if (res.status === 429) err.quotaType = classifyGemini429(errText);
     throw err;
@@ -90,14 +97,15 @@ async function callGeminiOnce(
 
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error(`[${callLabel}] Gemini returned no content.`);
+  if (!text) throw new Error(`[${callLabel}] Gemini (${model}) returned no content.`);
   console.log(`[${callLabel}] SUCCESS via Gemini (${model})`);
   return text;
 }
 
-// Tries one Gemini key: on an RPM/TPM 429, waits briefly and retries once;
-// on an RPD 429 or invalid key, gives up on this key immediately (no point
-// retrying — it won't recover until midnight Pacific or ever, respectively).
+// Tries one Gemini KEY across both models (flash-lite, then flash).
+// For each model: on an RPM/TPM 429, waits briefly and retries once on that
+// same model; on an RPD 429 or invalid key, moves straight to the next model
+// (separate quota bucket — worth a fresh shot) without wasting a retry.
 async function callGeminiWithKey(
   systemPrompt: string,
   userPrompt: string,
@@ -106,16 +114,38 @@ async function callGeminiWithKey(
   callLabel: string,
   maxTok: number,
 ): Promise<string> {
-  try {
-    return await callGeminiOnce(systemPrompt, userPrompt, apiKey, callLabel, maxTok);
-  } catch (err: any) {
-    if (err?.status === 429 && err?.quotaType === 'minute') {
-      console.warn(`[${callLabel}] ${keyLabel}: RPM/TPM limit hit, backing off ${MINUTE_BACKOFF_MS}ms and retrying once...`);
-      await sleep(MINUTE_BACKOFF_MS);
-      return await callGeminiOnce(systemPrompt, userPrompt, apiKey, callLabel, maxTok);
+  let lastErr: any = null;
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      return await callGeminiOnce(systemPrompt, userPrompt, apiKey, callLabel, maxTok, model);
+    } catch (err: any) {
+      lastErr = err;
+
+      if (err?.status === 401) {
+        // Invalid key — no point trying the other model with the same key.
+        throw err;
+      }
+
+      if (err?.status === 429 && err?.quotaType === 'minute') {
+        console.warn(`[${callLabel}] ${keyLabel} (${model}): RPM/TPM limit hit, backing off ${MINUTE_BACKOFF_MS}ms and retrying once...`);
+        await sleep(MINUTE_BACKOFF_MS);
+        try {
+          return await callGeminiOnce(systemPrompt, userPrompt, apiKey, callLabel, maxTok, model);
+        } catch (retryErr: any) {
+          lastErr = retryErr;
+          console.warn(`[${callLabel}] ${keyLabel} (${model}): retry also failed. Trying next model...`);
+          continue;
+        }
+      }
+
+      // Day-quota exhausted or other error on this model — try the next model.
+      console.warn(`[${callLabel}] ${keyLabel} (${model}) failed (${err?.status ?? 'unknown'}). Trying next model...`);
+      continue;
     }
-    throw err; // day-quota, invalid key, timeout, or other — caller moves to next key
   }
+
+  throw lastErr ?? new Error(`[${callLabel}] All Gemini models failed for ${keyLabel}.`);
 }
 
 // ── OPENROUTER CALL ──────────────────────────────────────────────────────
@@ -218,7 +248,7 @@ export async function callAI(
   callLabel: string,
   maxTok = 8192,
   userApiKey2?: string,        // Groq key 2
-  geminiKey?: string,          // now the primary path
+  geminiKey?: string,          // primary path
   openrouterKey?: string,      // last resort
 ): Promise<string> {
 
@@ -237,6 +267,11 @@ export async function callAI(
     safeUserPrompt = safeUserPrompt.slice(0, MAX_USER_CHARS) + '...';
   }
 
+  // Tracks what actually went wrong, so the final error message (if we get
+  // there) reflects reality instead of always blaming Gemini's daily quota.
+  let lastFailure: 'gemini-day' | 'gemini-minute' | 'gemini-invalid' | 'gemini-other'
+    | 'groq' | 'openrouter' | 'none-configured' = 'none-configured';
+
   // ── STEP 1: GEMINI, USER KEY FIRST, THEN SERVER FALLBACK KEYS ───────────
   const geminiKeysToTry: { key: string; label: string }[] = [];
   if (geminiKey && geminiKey.trim() !== '') {
@@ -253,11 +288,17 @@ export async function callAI(
       return await callGeminiWithKey(safeSystemPrompt, safeUserPrompt, key, label, callLabel, maxTok);
     } catch (err: any) {
       if (err?.status === 429 && err?.quotaType === 'day') {
-        console.warn(`[${callLabel}] ${label}: daily quota exhausted, trying next key...`);
+        console.warn(`[${callLabel}] ${label}: daily quota exhausted on all Gemini models, trying next key...`);
+        lastFailure = 'gemini-day';
+      } else if (err?.status === 429) {
+        console.warn(`[${callLabel}] ${label}: rate-limited, trying next key...`);
+        lastFailure = 'gemini-minute';
       } else if (err?.status === 401) {
         console.warn(`[${callLabel}] ${label}: invalid key, discarding.`);
+        lastFailure = 'gemini-invalid';
       } else {
         console.warn(`[${callLabel}] ${label} failed: ${err?.message}`);
+        lastFailure = 'gemini-other';
       }
       // fall through to next Gemini key
     }
@@ -274,6 +315,7 @@ export async function callAI(
       return await callGroqFallback(safeSystemPrompt, safeUserPrompt, groqKeysToTry, callLabel, maxTok, timeLeft);
     } catch (err: any) {
       console.warn(`[${callLabel}] Groq fallback failed: ${err?.message}`);
+      lastFailure = 'groq';
     }
   }
 
@@ -284,11 +326,20 @@ export async function callAI(
       return await callOpenRouter(safeSystemPrompt, safeUserPrompt, openrouterKey.trim(), callLabel, maxTok);
     } catch (err: any) {
       console.warn(`[${callLabel}] OpenRouter failed: ${err?.message}`);
+      lastFailure = 'openrouter';
     }
   }
 
-  throw new Error(
-    `Generation failed. Please check your API Key in settings. ` +
-    `If using your own key, it may be invalid or rate-limited. Gemini's free daily quota resets at midnight Pacific Time.`
-  );
+  // ── FINAL ERROR — reflects what actually happened ────────────────────────
+  const messages: Record<typeof lastFailure, string> = {
+    'gemini-day': "Gemini's free daily quota is exhausted on every model and key tried. It resets at midnight Pacific Time — or add a Groq/OpenRouter key in Settings as a backup for the rest of today.",
+    'gemini-minute': "Gemini's per-minute limit was hit repeatedly and the automatic retries didn't clear it. Please wait about a minute and try again.",
+    'gemini-invalid': 'Your Gemini API key was rejected as invalid. Please check it in Settings — get a fresh one at aistudio.google.com/apikey.',
+    'gemini-other': 'Gemini failed for an unexpected reason. Please try again, or add a Groq/OpenRouter key in Settings as a backup.',
+    'groq': 'Gemini and Groq both failed. Please try again in a bit, or add an OpenRouter key in Settings as a third backup.',
+    'openrouter': 'Gemini, Groq, and OpenRouter all failed. Please try again shortly.',
+    'none-configured': 'No API key was found. Please add at least a Gemini API key in Settings — get a free one at aistudio.google.com/apikey.',
+  };
+
+  throw new Error(`Generation failed. ${messages[lastFailure]}`);
 }
