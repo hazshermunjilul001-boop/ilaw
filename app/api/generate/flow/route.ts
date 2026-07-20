@@ -166,11 +166,9 @@ OPPORTUNITIES_FOR_INTEGRATION
 **${L.values}:** • Identify 2 explicit moments where Filipino core values are actively reinforced.
 **${L.tech}:** • Detail 2 accessible digital tools with absolute URLs that enhance learning outside class.`;
 
-    // ── CHANGE: Pass apiKey, apiKey2, and maxTokens to callAI ──────────────
-    // Run B and C concurrently (Promise.all) instead of sequentially.
-    // Part B is shorter, Part C is much longer — running them at the same time
-    // means total wall-clock time is roughly max(B, C) instead of B + C,
-    // which is what was previously blowing past the 60s Vercel limit.
+    // Run B and C truly in parallel (they were awaited sequentially before,
+    // which could nearly double the route's wall-clock time and trip
+    // Vercel's 60s limit). Promise.all fires both immediately.
     const [partB, partC] = await Promise.all([
       callAI(systemPrompt, promptB, apiKey, 'B-PRELESSON', 4000, apiKey2, geminiKey, openrouterKey),
       callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2, geminiKey, openrouterKey),
