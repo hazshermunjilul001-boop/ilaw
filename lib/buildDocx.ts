@@ -18,7 +18,13 @@ const fullB = { top: solid(6), bottom: solid(6), left: solid(6), right: solid(6)
 const thinB = { top: solid(3, 'AAAAAA'), bottom: solid(3, 'AAAAAA'), left: solid(3, 'AAAAAA'), right: solid(3, 'AAAAAA') };
 
 function isFilipinoPH(learningArea: string): boolean {
-  return /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea);
+  // NOTE: DepEd's MATATAG curriculum renamed some subjects — most notably
+  // Edukasyon sa Pagpapakatao (ESP) to "Values Education (VE)". The original
+  // regex only matched "esp" and missed "VE", so subjects like "VE 8" fell
+  // through to English labels even though they should use Filipino ones.
+  // \b word boundaries are used around short abbreviations (ap, esp, ve,
+  // mtb, epp) so they don't accidentally match inside unrelated words.
+  return /\b(araling\s*panlipunan|\bap\b|filipino|edukasyon\s*sa\s*pagpapakatao|\besp\b|values\s*education|\bve\b|mother\s*tongue|\bmtb(-mle)?\b|\bepp\b|gmrc)\b/i.test(learningArea);
 }
 
 interface TemplateLabels {
