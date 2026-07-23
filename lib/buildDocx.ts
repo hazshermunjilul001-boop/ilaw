@@ -1,13 +1,37 @@
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign,
-  LevelFormat,
+  LevelFormat, PageOrientation,
 } from 'docx';
 import { saveAs } from 'file-saver';
 
-const W = 9360;
-const LABEL_W = 2800;
-const CONTENT_W = W - LABEL_W;
+// ── LANDSCAPE LAYOUT ─────────────────────────────────────────────────────
+// Page is now landscape Letter (11in x 8.5in) instead of portrait. Content
+// tables that used to be 2 columns (label + one content cell) are now
+// N+1 columns for session-based fields: one label column plus one column
+// per session, so each session's content sits in its own dedicated column
+// instead of being stacked one-after-another in a single cell.
+// NOTE: the `docx` library swaps width/height internally whenever
+// orientation is LANDSCAPE, so these must be given in *portrait* order
+// (width = short edge, height = long edge) — the library flips them to
+// produce the actual landscape page. Passing already-swapped values here
+// double-swaps and silently renders portrait again.
+const PAGE_W_LANDSCAPE = 12240; // 8.5in (short edge)
+const PAGE_H_LANDSCAPE = 15840; // 11in (long edge)
+const PAGE_MARGIN = 1080;       // 0.75in
+
+const LANDSCAPE_W = 12960; // total table width used by every table on the page
+const LABEL_W = 2000;
+const CONTENT_W = LANDSCAPE_W - LABEL_W; // used by plain 2-column (lesson-wide) rows
+
+// Width of each session column for a given session count. Floors at 900
+// twips (~0.63in) so columns stay legible even with many sessions, though
+// very high session counts (7+) will make columns tight regardless.
+function sessionColWidth(sessionCount: number): number {
+  const n = Math.max(1, sessionCount);
+  return Math.max(900, Math.floor((LANDSCAPE_W - LABEL_W) / n));
+}
+
 const DARK_BLUE = '1F3864';
 const WHITE = 'FFFFFF';
 const LABEL_BG = 'EEEEEE';
@@ -371,10 +395,12 @@ function row2(labelParas: Paragraph[], contentParas: Paragraph[]): TableRow {
   });
 }
 
-function banner(boldText: string, subtitle = ''): TableRow {
+// spanCount = total columns the banner should cover (1 label + N sessions
+// for session-based tables, or 2 for the plain metadata table).
+function banner(boldText: string, subtitle = '', spanCount = 2): TableRow {
   return new TableRow({
     children: [new TableCell({
-      columnSpan: 2, borders: fullB, width: { size: W, type: WidthType.DXA },
+      columnSpan: spanCount, borders: fullB, width: { size: LANDSCAPE_W, type: WidthType.DXA },
       shading: { fill: GRAY_BG, type: ShadingType.CLEAR },
       margins: { top: 120, bottom: 120, left: 160, right: 160 },
       children: [new Paragraph({
@@ -385,6 +411,119 @@ function banner(boldText: string, subtitle = ''): TableRow {
       })],
     })],
   });
+}
+
+// ── Session-column table helpers ─────────────────────────────────────────
+// These support the new landscape layout: a header row naming each session,
+// a row that puts each session's content in its own column, a fallback row
+// for lesson-wide content (no per-session split found) that spans all the
+// session columns as one merged cell, and a dispatcher that picks between
+// the two automatically based on whether session markers were found.
+
+// Splits a field's raw AI text on "## SESSION n" / "## SESYON n" markers.
+// Returns null if no markers are found (i.e. the field is lesson-wide, not
+// per-session — e.g. Learning Competency, Learner Context), so the caller
+// can fall back to a single merged cell instead of guessing.
+function splitBySession(text: string, sessionCount: number): string[] | null {
+  if (!text || !text.trim()) return null;
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const marker = /^#{0,4}\s*(SESSION|SESYON)\s+(\d+)/i;
+
+  const markerHits: { idx: number; num: number }[] = [];
+  lines.forEach((line, i) => {
+    const m = line.trim().match(marker);
+    if (m) markerHits.push({ idx: i, num: parseInt(m[2], 10) });
+  });
+
+  if (markerHits.length === 0) return null;
+
+  const sessions: string[] = new Array(sessionCount).fill('');
+  for (let k = 0; k < markerHits.length; k++) {
+    const start = markerHits[k].idx + 1;
+    const end = k + 1 < markerHits.length ? markerHits[k + 1].idx : lines.length;
+    const num = markerHits[k].num;
+    if (num >= 1 && num <= sessionCount) {
+      sessions[num - 1] = lines.slice(start, end).join('\n').trim();
+    }
+  }
+  return sessions;
+}
+
+function sessionHeaderRow(sessionCount: number, sessionWord: string): TableRow {
+  const colW = sessionColWidth(sessionCount);
+  const cells: TableCell[] = [
+    new TableCell({
+      borders: thinB, width: { size: LABEL_W, type: WidthType.DXA },
+      shading: { fill: GRAY_BG, type: ShadingType.CLEAR },
+      margins: { top: 80, bottom: 80, left: 160, right: 160 },
+      children: [emptyP()],
+    }),
+  ];
+  for (let i = 1; i <= sessionCount; i++) {
+    cells.push(new TableCell({
+      borders: thinB, width: { size: colW, type: WidthType.DXA },
+      shading: { fill: GRAY_BG, type: ShadingType.CLEAR },
+      margins: { top: 80, bottom: 80, left: 100, right: 100 },
+      verticalAlign: VerticalAlign.CENTER,
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: `${sessionWord} ${i}`, bold: true, size: 19, font: 'Arial' })],
+      })],
+    }));
+  }
+  return new TableRow({ children: cells });
+}
+
+function rowPerSession(labelParas: Paragraph[], sessionTexts: string[]): TableRow {
+  const colW = sessionColWidth(sessionTexts.length);
+  const cells: TableCell[] = [
+    new TableCell({
+      borders: thinB, width: { size: LABEL_W, type: WidthType.DXA },
+      shading: { fill: LABEL_BG, type: ShadingType.CLEAR },
+      margins: { top: 120, bottom: 120, left: 160, right: 160 },
+      verticalAlign: VerticalAlign.TOP, children: labelParas,
+    }),
+  ];
+  for (const text of sessionTexts) {
+    cells.push(new TableCell({
+      borders: thinB, width: { size: colW, type: WidthType.DXA },
+      shading: { fill: WHITE, type: ShadingType.CLEAR },
+      margins: { top: 100, bottom: 100, left: 120, right: 120 },
+      verticalAlign: VerticalAlign.TOP,
+      children: text.trim() ? toParas(text) : [emptyP()],
+    }));
+  }
+  return new TableRow({ children: cells });
+}
+
+function rowSpanAll(labelParas: Paragraph[], contentParas: Paragraph[], sessionCount: number): TableRow {
+  return new TableRow({
+    children: [
+      new TableCell({
+        borders: thinB, width: { size: LABEL_W, type: WidthType.DXA },
+        shading: { fill: LABEL_BG, type: ShadingType.CLEAR },
+        margins: { top: 120, bottom: 120, left: 160, right: 160 },
+        verticalAlign: VerticalAlign.TOP, children: labelParas,
+      }),
+      new TableCell({
+        columnSpan: sessionCount,
+        borders: thinB, width: { size: CONTENT_W, type: WidthType.DXA },
+        shading: { fill: WHITE, type: ShadingType.CLEAR },
+        margins: { top: 120, bottom: 120, left: 160, right: 160 },
+        verticalAlign: VerticalAlign.TOP, children: contentParas,
+      }),
+    ],
+  });
+}
+
+// Picks per-session columns if the field's raw text has session markers,
+// otherwise falls back to one merged cell spanning all session columns.
+// This means any field works correctly whether or not the AI happened to
+// break it out by session — no per-field hardcoding required.
+function sessionAwareRow(labelParas: Paragraph[], rawText: string, sessionCount: number): TableRow {
+  const perSession = splitBySession(rawText, sessionCount);
+  if (perSession) return rowPerSession(labelParas, perSession);
+  return rowSpanAll(labelParas, rawText.trim() ? toParas(rawText) : [emptyP()], sessionCount);
 }
 
 function labelCell(title: string, desc: string): Paragraph[] {
@@ -481,9 +620,12 @@ function parseSection(content: string, tag: string): string {
       ) {
         break;
       }
-      if (/^##\s+(SESSION|SESYON)\s+\d+/i.test(lines[i].trim()) && tagNorm === 'PRE_LESSON') {
-        break;
-      }
+      // NOTE: a prior version broke PRE_LESSON parsing as soon as it saw a
+      // "## SESSION n" line, meant as a safety net against content bleeding
+      // in from a missing FLOW tag. That safety net was discarding every
+      // legitimate per-session Pre-Lesson block (PRE_LESSON is organized by
+      // session just like FLOW), so it's been removed — the ALL_TAGS check
+      // above already stops parsing at the next real section tag.
       result.push(lines[i]);
     }
     return result.join('\n').trim();
@@ -521,40 +663,41 @@ function parseSection(content: string, tag: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main export
+// Shared document builder — used by both buildDocx (browser) and
+// buildDocxBuffer (server). Landscape orientation; session-based fields get
+// one column per session via sessionAwareRow, lesson-wide fields (Learning
+// Competency, Learner Context, References, Declaration) stay single-cell.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function buildDocx(
+function buildLessonPlanDoc(
   aiContent: string,
   teacherName: string,
   lessonName: string,
-  learningArea = '',
-  gradeSection = '',
-  noOfSessions = '',
-) {
+  learningArea: string,
+  gradeSection: string,
+  noOfSessions: string,
+): { doc: Document; isFilipino: boolean } {
   const isFilipino = isFilipinoPH(learningArea);
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
+  const sessionWord = isFilipino ? 'Sesyon' : 'Session';
+  const sessionCount = Math.max(1, parseInt(noOfSessions) || 3);
+  const spanCount = 1 + sessionCount; // label column + one column per session
 
+  const raw = (key: string) => parseSection(aiContent, key);
   const get = (key: string) => {
-    const text = parseSection(aiContent, key);
+    const text = raw(key);
     return text ? toParas(text) : [emptyP()];
   };
 
-  // ── FIX #4: Reflections rows are kept as blank writeable templates.
-  // The AI-generated REFLECTIONS section (if any) is no longer silently
-  // discarded — if the AI outputs a REFLECTIONS tag, it will be parsed
-  // and used. If not, we fall back to blank per-session rows so the teacher
-  // can handwrite them. This is consistent with the DO's intent that
-  // reflections are a professional practice record, not a generated document.
-  const reflectionText = parseSection(aiContent, 'REFLECTIONS');
-  const sessionCount = parseInt(noOfSessions) || 3;
+  // FIX #4: Reflections stay as blank writeable per-session templates unless
+  // the AI provided its own REFLECTIONS content — kept as one merged cell
+  // (not split into session columns) since it's a handwritten practice log,
+  // not generated content that maps cleanly to per-session markers.
+  const reflectionText = raw('REFLECTIONS');
   const reflectionLines: Paragraph[] = [];
-
   if (reflectionText) {
-    // AI provided reflection content — render it
     reflectionLines.push(...toParas(reflectionText));
   } else {
-    // Fallback: blank per-session template rows for the teacher to fill in
     for (let i = 1; i <= sessionCount; i++) {
       reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
       reflectionLines.push(emptyP(), emptyP(), emptyP());
@@ -595,8 +738,12 @@ export async function buildDocx(
     sections: [{
       properties: {
         page: {
-          size: { width: 12240, height: 15840 },
-          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
+          size: {
+            width: PAGE_W_LANDSCAPE,
+            height: PAGE_H_LANDSCAPE,
+            orientation: PageOrientation.LANDSCAPE,
+          },
+          margin: { top: PAGE_MARGIN, right: PAGE_MARGIN, bottom: PAGE_MARGIN, left: PAGE_MARGIN },
         },
       },
       children: [
@@ -608,9 +755,9 @@ export async function buildDocx(
           children: [new TextRun({ text: L.docTitle, bold: true, size: 24, font: 'Arial' })],
         }),
 
-        // ── Header table: lesson metadata ───────────────────────────────────
+        // ── Header table: lesson metadata (plain 2-column, lesson-wide) ──────
         new Table({
-          width: { size: W, type: WidthType.DXA },
+          width: { size: LANDSCAPE_W, type: WidthType.DXA },
           columnWidths: [LABEL_W, CONTENT_W],
           rows: [
             row2([p(L.lessonName, true)], [p(lessonName)]),
@@ -620,7 +767,7 @@ export async function buildDocx(
             row2([p(L.noOfSessions, true)], [p(noOfSessions)]),
             row2(
               [p(L.references, true), p(L.referencesDesc, false, 17, '555555', true)],
-              parseSection(aiContent, 'REFERENCES')
+              raw('REFERENCES')
                 ? get('REFERENCES')
                 : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
             ),
@@ -639,17 +786,17 @@ export async function buildDocx(
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
         // ── I: INTENTIONS ───────────────────────────────────────────────────
+        // Learning Competency / Learner Context are lesson-wide (sessionAwareRow
+        // falls back to a merged cell automatically); Learning Objectives gets
+        // its own column per session if the AI content has session markers.
         new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
+          width: { size: LANDSCAPE_W, type: WidthType.DXA },
           rows: [
-            banner(L.intentionsBanner, L.intentionsDesc),
-            row2(labelCell(L.competencyLabel, L.competencyDesc), get('LEARNING_COMPETENCY')),
-            // FIX #2: Objectives section rendered as-is — no Cognitive/Psychomotor/Affective
-            // sub-labeling in the docx layout. The AI content no longer contains those
-            // sub-labels either (handled in route.ts fix). Plain focused objectives only.
-            row2(labelCell(L.objectivesLabel, L.objectivesDesc), get('LEARNING_OBJECTIVES')),
-            row2(labelCell(L.learnerContextLabel, L.learnerContextDesc), get('LEARNER_CONTEXT')),
+            banner(L.intentionsBanner, L.intentionsDesc, spanCount),
+            sessionAwareRow(labelCell(L.competencyLabel, L.competencyDesc), raw('LEARNING_COMPETENCY'), sessionCount),
+            sessionHeaderRow(sessionCount, sessionWord),
+            sessionAwareRow(labelCell(L.objectivesLabel, L.objectivesDesc), raw('LEARNING_OBJECTIVES'), sessionCount),
+            sessionAwareRow(labelCell(L.learnerContextLabel, L.learnerContextDesc), raw('LEARNER_CONTEXT'), sessionCount),
           ],
         }),
 
@@ -657,30 +804,26 @@ export async function buildDocx(
 
         // ── L: LEARNING EXPERIENCE ──────────────────────────────────────────
         new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
+          width: { size: LANDSCAPE_W, type: WidthType.DXA },
           rows: [
-            banner(L.learningExpBanner, L.learningExpDesc),
-            row2(labelCell(L.preLessonLabel, L.preLessonDesc), get('PRE_LESSON')),
-            // FIX #3: Flow label desc now communicates principles-based flexibility
-            // (the label text change is in ENGLISH_LABELS/FILIPINO_LABELS above)
-            row2(labelCell(L.flowLabel, L.flowDesc), get('FLOW')),
-            row2(labelCell(L.resourcesLabel, L.resourcesDesc), get('LEARNING_RESOURCES')),
-            // FIX #5: Label now reads "integration and contextualization"
-            row2(labelCell(L.integrationLabel, L.integrationDesc), get('OPPORTUNITIES_FOR_INTEGRATION')),
+            banner(L.learningExpBanner, L.learningExpDesc, spanCount),
+            sessionHeaderRow(sessionCount, sessionWord),
+            sessionAwareRow(labelCell(L.preLessonLabel, L.preLessonDesc), raw('PRE_LESSON'), sessionCount),
+            sessionAwareRow(labelCell(L.flowLabel, L.flowDesc), raw('FLOW'), sessionCount),
+            sessionAwareRow(labelCell(L.resourcesLabel, L.resourcesDesc), raw('LEARNING_RESOURCES'), sessionCount),
+            sessionAwareRow(labelCell(L.integrationLabel, L.integrationDesc), raw('OPPORTUNITIES_FOR_INTEGRATION'), sessionCount),
           ],
         }),
 
         new Paragraph({ spacing: { after: 160 }, children: [] }),
 
         // ── A: ASSESSING LEARNING ────────────────────────────────────────────
-        // FIX #7: Banner key changed from assessmentBanner to assessingLearningBanner
         new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
+          width: { size: LANDSCAPE_W, type: WidthType.DXA },
           rows: [
-            banner(L.assessingLearningBanner, L.assessingLearningDesc),
-            row2(labelCell(L.formativeLabel, L.formativeDesc), get('FORMATIVE_ASSESSMENT')),
+            banner(L.assessingLearningBanner, L.assessingLearningDesc, spanCount),
+            sessionHeaderRow(sessionCount, sessionWord),
+            sessionAwareRow(labelCell(L.formativeLabel, L.formativeDesc), raw('FORMATIVE_ASSESSMENT'), sessionCount),
           ],
         }),
 
@@ -688,16 +831,13 @@ export async function buildDocx(
 
         // ── W: WAYS FORWARD ─────────────────────────────────────────────────
         new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
+          width: { size: LANDSCAPE_W, type: WidthType.DXA },
           rows: [
-            banner(L.waysForwardBanner, L.waysForwardDesc),
-            // FIX #1: Uses EXTENDED_LEARNING tag — aligns with route.ts promptD
-            // which now outputs EXTENDED_LEARNING (not WAYS_FORWARD)
-            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
-            // FIX #4: reflectionLines now renders AI content if available,
-            // otherwise falls back to blank per-session template rows
-            row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
+            banner(L.waysForwardBanner, L.waysForwardDesc, spanCount),
+            sessionHeaderRow(sessionCount, sessionWord),
+            sessionAwareRow(labelCell(L.extendedLabel, L.extendedDesc), raw('EXTENDED_LEARNING'), sessionCount),
+            // Reflections stays merged across all session columns (see note above)
+            rowSpanAll(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines, sessionCount),
           ],
         }),
 
@@ -705,6 +845,24 @@ export async function buildDocx(
     }],
   });
 
+  return { doc, isFilipino };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Browser export — triggers a download via file-saver.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function buildDocx(
+  aiContent: string,
+  teacherName: string,
+  lessonName: string,
+  learningArea = '',
+  gradeSection = '',
+  noOfSessions = '',
+) {
+  const { doc, isFilipino } = buildLessonPlanDoc(
+    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions,
+  );
   const blob = await Packer.toBlob(doc);
   const filename = `${lessonName.replace(/[^a-z0-9]/gi, '_')}_${isFilipino ? 'Plano_sa_Aralin' : 'ILAW'}.docx`;
   saveAs(blob, filename);
@@ -723,142 +881,8 @@ export async function buildDocxBuffer(
   gradeSection = '',
   noOfSessions = '',
 ): Promise<Uint8Array> {
-  const isFilipino = isFilipinoPH(learningArea);
-  const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
-
-  const get = (key: string) => {
-    const text = parseSection(aiContent, key);
-    return text ? toParas(text) : [emptyP()];
-  };
-
-  const reflectionText = parseSection(aiContent, 'REFLECTIONS');
-  const sessionCount = parseInt(noOfSessions) || 3;
-  const reflectionLines: Paragraph[] = [];
-
-  if (reflectionText) {
-    reflectionLines.push(...toParas(reflectionText));
-  } else {
-    for (let i = 1; i <= sessionCount; i++) {
-      reflectionLines.push(p(`${L.afterSession} ${i}:`, true));
-      reflectionLines.push(emptyP(), emptyP(), emptyP());
-    }
-    reflectionLines.push(p(L.notesToShare, true));
-    reflectionLines.push(emptyP(), emptyP());
-    reflectionLines.push(p(L.coachHelp, true));
-    reflectionLines.push(emptyP(), emptyP());
-  }
-
-  const doc = new Document({
-    numbering: {
-      config: [
-        {
-          reference: 'bullets',
-          levels: [{
-            level: 0, format: LevelFormat.BULLET, text: '\u2022',
-            alignment: AlignmentType.LEFT,
-            style: {
-              paragraph: { indent: { left: 560, hanging: 280 } },
-              run: { font: 'Arial', size: 20 },
-            },
-          }],
-        },
-        {
-          reference: 'numbers',
-          levels: [{
-            level: 0, format: LevelFormat.DECIMAL, text: '%1.',
-            alignment: AlignmentType.LEFT,
-            style: {
-              paragraph: { indent: { left: 560, hanging: 280 } },
-              run: { font: 'Arial', size: 20 },
-            },
-          }],
-        },
-      ],
-    },
-    sections: [{
-      properties: {
-        page: {
-          size: { width: 12240, height: 15840 },
-          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
-        },
-      },
-      children: [
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 200 },
-          children: [new TextRun({ text: L.docTitle, bold: true, size: 24, font: 'Arial' })],
-        }),
-        new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
-          rows: [
-            row2([p(L.lessonName, true)], [p(lessonName)]),
-            row2([p(L.learningArea, true)], [p(learningArea)]),
-            row2([p(L.designedBy, true)], [p(teacherName)]),
-            row2([p(L.gradeSection, true)], [p(gradeSection)]),
-            row2([p(L.noOfSessions, true)], [p(noOfSessions)]),
-            row2(
-              [p(L.references, true), p(L.referencesDesc, false, 17, '555555', true)],
-              parseSection(aiContent, 'REFERENCES')
-                ? get('REFERENCES')
-                : [bul('DepEd Learner\'s Module'), bul('DepEd Teacher\'s Guide'), bul('K–12 MELC Curriculum Guide')]
-            ),
-            row2(
-              [
-                p(L.aiDeclaration, true),
-                emptyP(),
-                p(L.aiDeclarationDesc, false, 17, '555555', true),
-                p(L.aiDeclarationLink, false, 17, '1155CC', true),
-              ],
-              get('DECLARATION_AI'),
-            ),
-          ],
-        }),
-        new Paragraph({ spacing: { after: 160 }, children: [] }),
-        new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
-          rows: [
-            banner(L.intentionsBanner, L.intentionsDesc),
-            row2(labelCell(L.competencyLabel, L.competencyDesc), get('LEARNING_COMPETENCY')),
-            row2(labelCell(L.objectivesLabel, L.objectivesDesc), get('LEARNING_OBJECTIVES')),
-            row2(labelCell(L.learnerContextLabel, L.learnerContextDesc), get('LEARNER_CONTEXT')),
-          ],
-        }),
-        new Paragraph({ spacing: { after: 160 }, children: [] }),
-        new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
-          rows: [
-            banner(L.learningExpBanner, L.learningExpDesc),
-            row2(labelCell(L.preLessonLabel, L.preLessonDesc), get('PRE_LESSON')),
-            row2(labelCell(L.flowLabel, L.flowDesc), get('FLOW')),
-            row2(labelCell(L.resourcesLabel, L.resourcesDesc), get('LEARNING_RESOURCES')),
-            row2(labelCell(L.integrationLabel, L.integrationDesc), get('OPPORTUNITIES_FOR_INTEGRATION')),
-          ],
-        }),
-        new Paragraph({ spacing: { after: 160 }, children: [] }),
-        new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
-          rows: [
-            banner(L.assessingLearningBanner, L.assessingLearningDesc),
-            row2(labelCell(L.formativeLabel, L.formativeDesc), get('FORMATIVE_ASSESSMENT')),
-          ],
-        }),
-        new Paragraph({ spacing: { after: 160 }, children: [] }),
-        new Table({
-          width: { size: W, type: WidthType.DXA },
-          columnWidths: [LABEL_W, CONTENT_W],
-          rows: [
-            banner(L.waysForwardBanner, L.waysForwardDesc),
-            row2(labelCell(L.extendedLabel, L.extendedDesc), get('EXTENDED_LEARNING')),
-            row2(labelCell(L.reflectionsLabel, L.reflectionsDesc), reflectionLines),
-          ],
-        }),
-      ],
-    }],
-  });
-
+  const { doc } = buildLessonPlanDoc(
+    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions,
+  );
   return new Uint8Array(await Packer.toBuffer(doc));
 }
