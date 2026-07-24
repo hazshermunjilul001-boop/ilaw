@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
+import { isFilipinoPH } from '../../../../lib/language';
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +30,11 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea);
+    // FIX: was a locally duplicated regex missing "VE" (Values Education —
+    // ESP's MATATAG-curriculum rename), which caused Filipino-medium
+    // subjects like "VE 8" to silently generate in English. Now uses the
+    // same shared detector as buildDocx.ts so this can't drift out of sync.
+    const isFilipino = isFilipinoPH(learningArea);
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
 
     // ── REPLACE THIS BLOCK ───────────────────────────────────────────────

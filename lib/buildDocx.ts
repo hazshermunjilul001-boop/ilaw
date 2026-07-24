@@ -4,6 +4,7 @@ import {
   LevelFormat, PageOrientation,
 } from 'docx';
 import { saveAs } from 'file-saver';
+import { isFilipinoPH } from './language';
 
 // ── LANDSCAPE LAYOUT ─────────────────────────────────────────────────────
 // Page is now landscape Letter (11in x 8.5in) instead of portrait. Content
@@ -40,16 +41,6 @@ const GRAY_BG = 'D9D9D9';
 const solid = (sz = 5, color = '000000') => ({ style: BorderStyle.SINGLE, size: sz, color });
 const fullB = { top: solid(6), bottom: solid(6), left: solid(6), right: solid(6) };
 const thinB = { top: solid(3, 'AAAAAA'), bottom: solid(3, 'AAAAAA'), left: solid(3, 'AAAAAA'), right: solid(3, 'AAAAAA') };
-
-function isFilipinoPH(learningArea: string): boolean {
-  // NOTE: DepEd's MATATAG curriculum renamed some subjects — most notably
-  // Edukasyon sa Pagpapakatao (ESP) to "Values Education (VE)". The original
-  // regex only matched "esp" and missed "VE", so subjects like "VE 8" fell
-  // through to English labels even though they should use Filipino ones.
-  // \b word boundaries are used around short abbreviations (ap, esp, ve,
-  // mtb, epp) so they don't accidentally match inside unrelated words.
-  return /\b(araling\s*panlipunan|\bap\b|filipino|edukasyon\s*sa\s*pagpapakatao|\besp\b|values\s*education|\bve\b|mother\s*tongue|\bmtb(-mle)?\b|\bepp\b|gmrc)\b/i.test(learningArea);
-}
 
 interface TemplateLabels {
   docTitle: string; lessonName: string; learningArea: string; designedBy: string;
@@ -427,7 +418,14 @@ function banner(boldText: string, subtitle = '', spanCount = 2): TableRow {
 function splitBySession(text: string, sessionCount: number): string[] | null {
   if (!text || !text.trim()) return null;
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  const marker = /^#{0,4}\s*(SESSION|SESYON)\s+(\d+)/i;
+  // NOTE: the actual generation prompts (route.ts files) tell the AI to
+  // format session headers as "**SESSION 1 — "Title" (duration):**" —
+  // markdown BOLD, not a "##" heading. The previous regex only matched
+  // "##"-style headings, which never appears in real output, so every
+  // field silently fell back to one merged cell instead of splitting by
+  // session. This version strips any leading combination of *, #, and
+  // whitespace before checking for the SESSION/SESYON + number pattern.
+  const marker = /^[\s*#]*\b(SESSION|SESYON)\b\s+(\d+)/i;
 
   const markerHits: { idx: number; num: number }[] = [];
   lines.forEach((line, i) => {

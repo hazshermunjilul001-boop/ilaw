@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
+import { isFilipinoPH } from '../../../../lib/language';
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea);
+    // FIX: shared detector (see lib/language.ts) — was missing "VE" locally
+    const isFilipino = isFilipinoPH(learningArea);
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
 
     // ── REPLACE THIS BLOCK ───────────────────────────────────────────────
@@ -38,7 +40,6 @@ export async function POST(req: Request) {
       : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya. Write entirely in English. When using Davao City context, use English names (e.g., "Davao City Hall", not "Gobyerno ng Davao"). Do NOT use local dialect words.';
     // ────────────────────────────────────────────────────────────────────
 
-    const aiNote = isFilipino
     const L = isFilipino ? {
       session:    'SESYON',
       descLabel:  'Paglalarawan',
