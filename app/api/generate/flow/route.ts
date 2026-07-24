@@ -9,6 +9,28 @@ import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
 import { isFilipinoPH } from '../../../../lib/language';
 
+// ── FIX: guard against models (esp. Gemini flash-lite) that sometimes drop
+// the standalone "FLOW" tag line even though the system prompt requires it.
+// buildDocx.ts's parseSection() only stops reading PRE_LESSON once it hits a
+// *recognized* tag — if FLOW's own tag line never appears, all of FLOW's
+// content silently gets absorbed into PRE_LESSON, and the FLOW cell renders
+// blank. We know for certain partC always starts with FLOW content, so we
+// don't need to trust the model to self-label it — we inject the tag
+// ourselves if it's missing.
+function ensureFlowTag(text: string): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const hasFlowTag = lines.some((l) => {
+    const clean = l
+      .replace(/^#{1,4}\s*/, '')
+      .replace(/\*{1,2}/g, '')
+      .replace(/:+$/, '')
+      .trim()
+      .toUpperCase();
+    return clean === 'FLOW';
+  });
+  return hasFlowTag ? text : `FLOW\n${text}`;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -175,7 +197,7 @@ OPPORTUNITIES_FOR_INTEGRATION
       callAI(systemPrompt, promptC, apiKey, 'C-FLOW', 6000, apiKey2, geminiKey, openrouterKey),
     ]);
 
-    return NextResponse.json({ content: partB + '\n\n' + partC });
+    return NextResponse.json({ content: partB + '\n\n' + ensureFlowTag(partC) });
   } catch (error: any) {
     console.error('FLOW ROUTE ERROR:', error?.message);
     return NextResponse.json({ error: error?.message || 'Unknown error' }, { status: 500 });
