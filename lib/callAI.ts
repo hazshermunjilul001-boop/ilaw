@@ -239,15 +239,27 @@ export async function callAI(
   const startTime = Date.now();
   const timeLeft = () => OVERALL_BUDGET_MS - (Date.now() - startTime);
 
-  const MAX_SYSTEM_CHARS = 1500;
-  const MAX_USER_CHARS = 6000;
+  // NOTE: this is a blind slice-from-the-end safety clamp — it has no idea
+  // whether the tail of the prompt is disposable filler or the actual
+  // schema/instructions the caller needs the model to see. Callers that put
+  // variable-length content BEFORE their instructions (e.g. lesson-plan
+  // text followed by a JSON schema) can have the entire schema silently
+  // stripped out if this is set too low, causing the model to respond with
+  // no idea what format is expected — this is what caused the "blank slide"
+  // bug where session content came back empty. All current Gemini/Groq/
+  // OpenRouter models here comfortably support far more than this in
+  // context, so this only needs to guard against genuinely runaway input.
+  const MAX_SYSTEM_CHARS = 4000;
+  const MAX_USER_CHARS = 28000;
 
   let safeSystemPrompt = systemPrompt;
   if (safeSystemPrompt.length > MAX_SYSTEM_CHARS) {
+    console.warn(`[${callLabel}] SYSTEM prompt truncated from ${safeSystemPrompt.length} to ${MAX_SYSTEM_CHARS} chars.`);
     safeSystemPrompt = safeSystemPrompt.slice(0, MAX_SYSTEM_CHARS) + '...';
   }
   let safeUserPrompt = userPrompt;
   if (safeUserPrompt.length > MAX_USER_CHARS) {
+    console.warn(`[${callLabel}] USER prompt truncated from ${safeUserPrompt.length} to ${MAX_USER_CHARS} chars — if instructions/schema live near the end of the prompt, this can silently strip them out.`);
     safeUserPrompt = safeUserPrompt.slice(0, MAX_USER_CHARS) + '...';
   }
 

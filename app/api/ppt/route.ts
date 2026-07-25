@@ -20,7 +20,8 @@ CRITICAL RULES:
 - For examples: show the COMPLETE step-by-step solution on the slide, not a description of it.
 - For activities: write the exact student task/question they need to answer.
 - Include actual numbers, equations, and Davao City contexts from the LP.
-- Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.`;
+- Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.
+- CRITICAL: Each call asks for exactly ONE JSON object matching the schema given in that call's prompt. NEVER invent your own structure (e.g. a generic "slides": [...] array with "title"/"content" fields) — that format does NOT exist and will break the app. Only use the exact key names shown in the schema. If a call asks only for a "lessonHook" object, output ONLY that single key — nothing else, no matter how much space is left.`;
 
 // ── UPDATED FUNCTION: Added langRules parameter ─────────────────────
 function buildSessionPrompt(
@@ -29,14 +30,11 @@ function buildSessionPrompt(
   sessionCount: number,
   langRules: string, // <--- NEW
 ): string {
-  return `Here is a complete ILAW Lesson Plan. Transform Session ${sessionNum} of ${sessionCount} into student-facing PowerPoint slide content.
+  return `Here is Session ${sessionNum} of ${sessionCount} from an ILAW Lesson Plan. Transform it into student-facing PowerPoint slide content.
 
 LANGUAGE RULE: ${langRules}
 
-LESSON PLAN CONTENT:
- ${content.slice(0, 10000)}
-
-Focus on Session ${sessionNum}. Output ONLY valid JSON for this single session object (no array wrapper, no lessonHook):
+Output ONLY valid JSON for this single session object (no array wrapper, no lessonHook, no other keys):
 {
   "sessionNum": ${sessionNum},
   "sessionTitle": "Short student-friendly session title (max 8 words)",
@@ -97,18 +95,40 @@ Focus on Session ${sessionNum}. Output ONLY valid JSON for this single session o
     "What we learned: key takeaway 2 (max 15 words)",
     "What we learned: key takeaway 3 (max 15 words)"
   ]
-}`;
+}
+
+Focus only on Session ${sessionNum}. Fill in EVERY field above with real content — do not leave any field empty or omit any key.
+
+LESSON PLAN CONTENT (Session ${sessionNum} is what you're transforming — other sessions may appear too, ignore those):
+ ${content.slice(0, 6000)}`;
 }
 
 // ── UPDATED FUNCTION: Added langRules parameter ─────────────────────
 function buildHookPrompt(content: string, langRules: string): string { // <--- NEW
-  return `Here is an ILAW Lesson Plan. Respond with ONLY a single JSON object, no markdown:
+  return `Here is an ILAW Lesson Plan. This call is ONLY for the cover-slide hook — do NOT generate slides, objectives, or any other content.
+
+Respond with ONLY this single JSON object, no markdown, no other keys, nothing before or after it:
 {"lessonHook": "One surprising fact or question to open the presentation (max 25 words)"}
 
 LANGUAGE RULE: ${langRules}
 
 LESSON PLAN CONTENT:
  ${content.slice(0, 3000)}`;
+}
+
+// ── SESSION CONTENT VALIDATOR ──────────────────────────────────────────
+// A parsed object can technically be "valid JSON" and still be an empty
+// shell (e.g. only { "sessionNum": 1 } survived truncation/schema drift).
+// Reject those instead of silently shipping a blank-looking deck.
+function isSessionContentComplete(s: any): boolean {
+  if (!s || typeof s !== 'object') return false;
+  const nonEmptyStr = (v: any) => typeof v === 'string' && v.trim().length > 0;
+  const nonEmptyArr = (v: any) => Array.isArray(v) && v.length > 0 && v.some(nonEmptyStr);
+
+  const requiredStrings = [s.sessionTitle, s.conceptDefinition, s.warmUpTask, s.exitTicket];
+  const requiredArrays = [s.objectives, s.conceptKeyPoints, s.summaryPoints, s.discussionQuestions];
+
+  return requiredStrings.every(nonEmptyStr) && requiredArrays.every(nonEmptyArr);
 }
 
 // ── ROBUST JSON PARSER ───────────────────────────────────────────────
@@ -210,24 +230,45 @@ export async function POST(req: Request) {
     for (let i = 0; i < sessionCount; i++) {
       console.log(`[PPT] Starting generation for Session ${i + 1}...`);
   
+      const SESSION_MAX_TOKENS = 6000; // was 3000 — schema has ~25 fields, was truncating mid-generation
+
       try {
-        const raw = await callAI(
-          SYSTEM, 
+        let raw = await callAI(
+          SYSTEM,
           buildSessionPrompt(content, i + 1, sessionCount, langRules),
-          apiKey, 
-          `PPT-S${i + 1}`, 
-          3000,
+          apiKey,
+          `PPT-S${i + 1}`,
+          SESSION_MAX_TOKENS,
           apiKey2,
           geminiKey,      // <--- ADDED
           openrouterKey,  // <--- ADDED
         );
-    
-        const parsed = parseJson(raw, `session${i + 1}`);
-        if (parsed) {
+
+        let parsed = parseJson(raw, `session${i + 1}`);
+
+        // Parsed-but-hollow (e.g. only { sessionNum: 1 } survived truncation
+        // or schema drift) — retry once before giving up on this session.
+        if (parsed && !isSessionContentComplete(parsed)) {
+          console.warn(`[PPT] Session ${i + 1} parsed but content incomplete (keys: ${Object.keys(parsed).join(',')}). Retrying once.`);
+          raw = await callAI(
+            SYSTEM,
+            buildSessionPrompt(content, i + 1, sessionCount, langRules) +
+              '\n\nREMINDER: Fill in EVERY field with real content. Do not leave any field empty or omit any key.',
+            apiKey,
+            `PPT-S${i + 1}-retry`,
+            SESSION_MAX_TOKENS,
+            apiKey2,
+            geminiKey,
+            openrouterKey,
+          );
+          parsed = parseJson(raw, `session${i + 1}-retry`);
+        }
+
+        if (parsed && isSessionContentComplete(parsed)) {
           sessionResults.push(parsed);
           console.log(`[PPT] Session ${i + 1} generated successfully.`);
         } else {
-          console.warn(`[PPT] Session ${i + 1} parsing failed, skipping.`);
+          console.warn(`[PPT] Session ${i + 1} failed to produce complete content after retry, skipping. Raw (first 500 chars): ${(raw || '').slice(0, 500)}`);
         }
       } catch (err) {
         console.error(`[PPT] Session ${i + 1} failed completely.`, err);
