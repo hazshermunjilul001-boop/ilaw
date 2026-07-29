@@ -28,7 +28,7 @@ const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
 // OVERALL_BUDGET_MS, which is what lets a caller safely run two callAI()
 // calls in parallel (or sequentially) and stay under Vercel's 60s cap.
 const ATTEMPT_TIMEOUT_MS = 9000;
-const OVERALL_BUDGET_MS = 25000;   // ← tightened from 48000
+const OVERALL_BUDGET_MS = 50000;   // ← tightened from 50000
 
 type QuotaType = 'day' | 'minute' | 'other';
 
