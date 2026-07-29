@@ -66,7 +66,7 @@ export default function Home() {
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
 
-  // ── UPDATED handleGenerate to send BOTH API Keys ─────────────────────
+  // ── FIXED handleGenerate to call all 5 split endpoints ─────────────
   const handleGenerate = async () => {
     setLoading(true);
     setStatus('generating');
@@ -77,14 +77,13 @@ export default function Home() {
     }, 7000);
 
     try {
-      // Prepare payload including BOTH API Keys
+      // Prepare payload including ALL API Keys
       const payload = { ...form, geminiKey, apiKey, openrouterKey };
 
-      // ── 3 staggered API calls ──
-      // Spaced out (not fired all at once) so a single click doesn't spend
-      // 3 of a free-tier Gemini key's ~10-15 requests-per-minute budget in
-      // the same instant, leaving no headroom for retries.
-      const STAGGER_MS = 1200;
+      // ── 5 staggered API calls ──
+      // Spaced out so a single click doesn't spend all of a free-tier Gemini 
+      // key's requests-per-minute budget in the same instant.
+      const STAGGER_MS = 800;
       const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
       const post = (url: string) =>
         fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -92,11 +91,23 @@ export default function Home() {
       setLoadingMessage('🤖 Writing references, objectives, and learner context...');
       const resA = post('/api/generate/header');
       await delay(STAGGER_MS);
+      
+      setLoadingMessage('📝 Writing pre-lesson warm-ups...');
+      const resPrelesson = post('/api/generate/prelesson');
+      await delay(STAGGER_MS);
+      
+      setLoadingMessage('🎯 Designing session flow...');
       const resFlow = post('/api/generate/flow');
       await delay(STAGGER_MS);
+      
+      setLoadingMessage('📚 Generating learning resources...');
+      const resResources = post('/api/generate/resources');
+      await delay(STAGGER_MS);
+      
+      setLoadingMessage('📊 Building formative assessments...');
       const resD = post('/api/generate/assessment');
 
-      // Parse all three responses
+      // Parse all five responses safely
       async function parseRes(resOrPromise: Response | Promise<Response>, label: string) {
         const res = await resOrPromise;
         const rawText = await res.text();
@@ -110,13 +121,17 @@ export default function Home() {
         return data.content as string;
       }
 
-      const [partA, partBC, partD] = await Promise.all([
-        parseRes(resA,    'A-HEADER'),
-        parseRes(resFlow, 'B+C-FLOW'),
-        parseRes(resD,    'D-ASSESSMENT'),
+      // Wait for all 5 to finish and extract their text
+      const [partA, partPrelesson, partFlow, partResources, partD] = await Promise.all([
+        parseRes(resA,          'A-HEADER'),
+        parseRes(resPrelesson,  'B-PRELESSON'),
+        parseRes(resFlow,       'C-FLOW'),
+        parseRes(resResources,  'C-RESOURCES'),
+        parseRes(resD,          'D-ASSESSMENT'),
       ]);
 
-      const combinedContent = [partA, partBC, partD].join('\n\n');
+      // Stitch them together in the exact order buildDocx.ts expects
+      const combinedContent = [partA, partPrelesson, partFlow, partResources, partD].join('\n\n');
       setGeneratedContent(combinedContent);
 
       console.log('RAW CONTENT PREVIEW:', combinedContent.substring(0, 2000));
@@ -171,10 +186,6 @@ export default function Home() {
   };
 
   // ── VALIDATION: Gemini key is required ───────────────────────────────
-  // Gemini is the primary provider and where shared-quota pressure lives.
-  // Requiring teachers to bring their own key keeps the app free and fast
-  // for everyone instead of everyone quietly riding the shared backup.
-  // Groq/OpenRouter remain optional extra-reliability add-ons.
   const allFilled =
     form.lessonName &&
     form.learningArea &&
@@ -977,7 +988,7 @@ export default function Home() {
                                 sessions: form.sessions,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
+                                openrouterKey: openrouterKey,
                               }),
                             });
                             if (!res.ok) {
@@ -1028,7 +1039,7 @@ export default function Home() {
                                 sessions: form.sessions,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
-                                openrouterKey: openrouterKey, // <--- ADDED: Send 2nd key
+                                openrouterKey: openrouterKey,
                               }),
                             });
                             if (!res.ok) {
