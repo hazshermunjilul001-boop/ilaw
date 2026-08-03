@@ -3,6 +3,7 @@
 // Color theme: dark green #1B5E20 + gold #F9A825 (matches sample template).
 
 import pptxgen from 'pptxgenjs';
+import { isFilipinoPH } from './language';
 
 // ── Color palette ─────────────────────────────────────────────────────────────
 const C = {
@@ -25,6 +26,103 @@ const W          = 10;
 const H          = 5.625;
 const FONT_HEAD  = 'Trebuchet MS';
 const FONT_BODY  = 'Calibri';
+
+// ── Slide text labels (English / Filipino) ──────────────────────────────────
+// FIX: this file previously had every label hardcoded in English regardless
+// of subject — learningArea was only used to *display* the subject name, never
+// to choose label language. That meant a VE/ESP/AP/Filipino lesson whose DOCX
+// correctly generated in Filipino would still get an all-English deck. This
+// mirrors the ENGLISH_LABELS/FILIPINO_LABELS pattern in buildDocx.ts and
+// reuses the same Filipino terminology already used there (e.g. "Sesyon",
+// "Bago ang Aralin") so a teacher sees consistent wording across both files.
+
+const ENGLISH_LABELS = {
+  todaysLesson:      "TODAY'S LESSON",
+  teacherPrefix:      'Teacher: ',
+  sessionWord:        'Session',
+  cornerBadge:        "📚\nLET'S\nLEARN",
+  byEndOfToday:       'By the End of Today...',
+  learningGoals:      '🎯  Learning Goals',
+  warmUpPrefix:       'Warm-Up: ',
+  thinkAboutThis:     '❓ THINK ABOUT THIS:',
+  writeAnswerHere:    '✏️  Write your answer here...',
+  keyConceptDefault:  'Key Concept',
+  definition:         'DEFINITION',
+  keyPoints:          '📌  KEY POINTS TO REMEMBER:',
+  examplePrefix:      'Example ',
+  given:              'GIVEN',
+  solution:           'SOLUTION:',
+  yourTurn:           '✏️  Your Turn!',
+  solveThis:          'SOLVE THIS:',
+  hintPrefix:         '💡  Hint: ',
+  showSolutionHere:   'Show your solution here:',
+  letsDiscuss:        "💬  Let's Discuss",
+  shareThoughts:      'Share your thoughts with the class:',
+  activityPrefix:     '⚡  Activity: ',
+  classActivityDefault: 'Class Activity',
+  trackALabel:        'Track A', trackASub: 'For Everyone',
+  trackBLabel:        'Track B', trackBSub: 'Need More Help?',
+  trackCLabel:        'Track C', trackCSub: 'Challenge!',
+  exitTicket:         '🎯  Exit Ticket',
+  beforeYouLeave:     'Before you leave, answer this on a piece of paper and pass it to your teacher.',
+  answerThis:         'ANSWER THIS:',
+  myAnswer:           'My Answer:',
+  realLifeDefault:    'Real-Life Connection',
+  didYouKnow:         'DID YOU KNOW?',
+  think:              'THINK:',
+  myAnswerLower:      'My answer:',
+  whatWeLearned:      '📝  What We Learned Today',
+  greatJob:           'Great job today! Here are the key takeaways:',
+  wellDone:           '🎉  Well Done!',
+  completedAllSessions: 'You have completed all sessions for:',
+  keepLearning:       'Keep learning. Keep growing. 💚',
+  isFilipino:         false,
+};
+
+const FILIPINO_LABELS: typeof ENGLISH_LABELS = {
+  todaysLesson:      'ARALIN NGAYON',
+  teacherPrefix:      'Guro: ',
+  sessionWord:        'Sesyon',
+  cornerBadge:        '📚\nMAG-ARAL\nTAYO',
+  byEndOfToday:       'Sa Pagtatapos ng Araw na Ito...',
+  learningGoals:      '🎯  Mga Layunin sa Pagkatuto',
+  warmUpPrefix:       'Pasiglahan: ',
+  thinkAboutThis:     '❓ PAG-ISIPAN ITO:',
+  writeAnswerHere:    '✏️  Isulat ang iyong sagot dito...',
+  keyConceptDefault:  'Pangunahing Konsepto',
+  definition:         'KAHULUGAN',
+  keyPoints:          '📌  MGA MAHALAGANG PUNTO NA DAPAT TANDAAN:',
+  examplePrefix:      'Halimbawa ',
+  given:              'IBINIGAY',
+  solution:           'SOLUSYON:',
+  yourTurn:           '✏️  Ikaw Naman!',
+  solveThis:          'SAGUTIN ITO:',
+  hintPrefix:         '💡  Pahiwatig: ',
+  showSolutionHere:   'Ipakita ang iyong solusyon dito:',
+  letsDiscuss:        '💬  Pag-usapan Natin',
+  shareThoughts:      'Ibahagi ang iyong opinyon sa klase:',
+  activityPrefix:     '⚡  Gawain: ',
+  classActivityDefault: 'Gawaing Pangklase',
+  trackALabel:        'Track A', trackASub: 'Para sa Lahat',
+  trackBLabel:        'Track B', trackBSub: 'Kailangan ng Tulong?',
+  trackCLabel:        'Track C', trackCSub: 'Hamon!',
+  exitTicket:         '🎯  Exit Ticket', // kept as-is: standard DepEd pedagogical term, commonly left untranslated
+  beforeYouLeave:     'Bago ka umalis, sagutin ito sa isang papel at ipasa sa iyong guro.',
+  answerThis:         'SAGUTIN ITO:',
+  myAnswer:           'Aking Sagot:',
+  realLifeDefault:    'Koneksyon sa Tunay na Buhay',
+  didYouKnow:         'ALAM MO BA?',
+  think:              'PAG-ISIPAN:',
+  myAnswerLower:      'Aking sagot:',
+  whatWeLearned:      '📝  Ang Natutunan Natin Ngayon',
+  greatJob:           'Magaling! Narito ang mga mahalagang aral:',
+  wellDone:           '🎉  Magaling!',
+  completedAllSessions: 'Natapos mo na ang lahat ng sesyon para sa:',
+  keepLearning:       'Ipagpatuloy ang pag-aaral. Ipagpatuloy ang paglago. 💚',
+  isFilipino:         true,
+};
+
+type PptxLabels = typeof ENGLISH_LABELS;
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -59,32 +157,11 @@ function addFooter(slide: pptxgen.Slide, lessonName: string, teacherName: string
   });
 }
 
-function addCard(
-  slide: pptxgen.Slide,
-  x: number, y: number, w: number, h: number,
-  header: string, lines: string[],
-  accentColor = C.midGreen,
-  headerBg = C.darkGreen,
-) {
-  slide.addShape('rect', { x, y, w, h, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1 },
-    shadow: { type: 'outer', color: '000000', opacity: 0.07, blur: 4, offset: 2, angle: 135 } });
-  slide.addShape('rect', { x, y, w, h: 0.33, fill: { color: headerBg }, line: { color: headerBg, width: 0 } });
-  slide.addShape('rect', { x, y, w: 0.07, h, fill: { color: accentColor }, line: { color: accentColor, width: 0 } });
-  slide.addText(header, {
-    x: x + 0.12, y, w: w - 0.15, h: 0.33,
-    fontFace: FONT_HEAD, fontSize: 10.5, bold: true, color: C.white, valign: 'middle',
-  });
-  if (lines.length) {
-    slide.addText(
-      lines.map((l, i) => ({ text: trunc(l, 110), options: { bullet: true, breakLine: i < lines.length - 1, fontSize: 10.5, color: C.darkText, fontFace: FONT_BODY } })),
-      { x: x + 0.15, y: y + 0.36, w: w - 0.22, h: h - 0.4, valign: 'top', paraSpaceAfter: 3 }
-    );
-  }
-}
-
 // ── Slide builders ────────────────────────────────────────────────────────────
+// Every builder that shows static (non-AI-generated) text now takes `L` —
+// the active label set — instead of hardcoding English strings.
 
-function addCoverSlide(pres: pptxgen, lessonName: string, teacherName: string, learningArea: string, gradeSection: string, sessionCount: number, lessonHook: string) {
+function addCoverSlide(pres: pptxgen, L: PptxLabels, lessonName: string, teacherName: string, learningArea: string, gradeSection: string, sessionCount: number, lessonHook: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.darkGreen };
 
@@ -92,7 +169,7 @@ function addCoverSlide(pres: pptxgen, lessonName: string, teacherName: string, l
   slide.addShape('rect', { x: 0, y: H - 0.2,  w: W, h: 0.2,  fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
   slide.addShape('rect', { x: 7.8, y: 0.2,    w: 2.2, h: H - 0.4, fill: { color: C.midGreen }, line: { color: C.midGreen, width: 0 } });
 
-  slide.addText('TODAY\'S LESSON', { x: 0.5, y: 0.35, w: 7, h: 0.4, fontFace: FONT_BODY, fontSize: 12, bold: true, color: C.gold, charSpacing: 3 });
+  slide.addText(L.todaysLesson, { x: 0.5, y: 0.35, w: 7, h: 0.4, fontFace: FONT_BODY, fontSize: 12, bold: true, color: C.gold, charSpacing: 3 });
   slide.addText(trunc(lessonName, 70), { x: 0.5, y: 0.8, w: 7, h: 2.0, fontFace: FONT_HEAD, fontSize: 34, bold: true, color: C.white, valign: 'middle', wrap: true });
   slide.addShape('rect', { x: 0.5, y: 2.95, w: 6.5, h: 0.05, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
 
@@ -106,28 +183,32 @@ function addCoverSlide(pres: pptxgen, lessonName: string, teacherName: string, l
 
   slide.addText([
     { text: `${learningArea}  ·  ${gradeSection}`, options: { breakLine: true, fontSize: 12, color: C.gold, bold: true } },
-    { text: `Teacher: ${teacherName}`, options: { breakLine: true, fontSize: 11, color: C.white } },
-    { text: `${sessionCount} Session${sessionCount > 1 ? 's' : ''}`, options: { fontSize: 11, color: C.white } },
+    { text: `${L.teacherPrefix}${teacherName}`, options: { breakLine: true, fontSize: 11, color: C.white } },
+    { text: `${sessionCount} ${L.sessionWord}${sessionCount > 1 && !L.isFilipino ? 's' : ''}`, options: { fontSize: 11, color: C.white } },
   ], { x: 0.5, y: 4.1, w: 7, h: 0.9, fontFace: FONT_BODY, valign: 'top' });
 
-  slide.addText('📚\nLET\'S\nLEARN', { x: 7.9, y: 1.5, w: 2.0, h: 2.5, fontFace: FONT_HEAD, fontSize: 18, bold: true, color: C.gold, align: 'center', valign: 'middle' });
+  slide.addText(L.cornerBadge, { x: 7.9, y: 1.5, w: 2.0, h: 2.5, fontFace: FONT_HEAD, fontSize: 18, bold: true, color: C.gold, align: 'center', valign: 'middle' });
 }
 
-function addSessionDivider(pres: pptxgen, sessionNum: number, sessionTitle: string, lessonName: string) {
+function addSessionDivider(pres: pptxgen, L: PptxLabels, sessionNum: number, sessionTitle: string, lessonName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.midGreen };
   slide.addShape('rect', { x: 0, y: 0, w: 0.28, h: H, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
   slide.addShape('rect', { x: W - 0.28, y: 0, w: 0.28, h: H, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText(`SESSION ${sessionNum}`, { x: 0.5, y: 0.9, w: W - 1, h: 0.9, fontFace: FONT_HEAD, fontSize: 44, bold: true, charSpacing: 8, color: C.gold, align: 'center' });
+  slide.addText(`${L.sessionWord.toUpperCase()} ${sessionNum}`, { x: 0.5, y: 0.9, w: W - 1, h: 0.9, fontFace: FONT_HEAD, fontSize: 44, bold: true, charSpacing: 8, color: C.gold, align: 'center' });
   slide.addText(trunc(sessionTitle, 80), { x: 0.5, y: 2.0, w: W - 1, h: 1.1, fontFace: FONT_HEAD, fontSize: 24, color: C.white, align: 'center', valign: 'middle', wrap: true });
   slide.addShape('rect', { x: 2.5, y: 3.25, w: 5, h: 0.05, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
   slide.addText(trunc(lessonName, 55), { x: 0.5, y: 3.4, w: W - 1, h: 0.4, fontFace: FONT_BODY, fontSize: 12, italic: true, color: C.white, align: 'center' });
 }
 
-function addWarmUpSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function sessionBadge(L: PptxLabels, sNum: number): string {
+  return `${L.sessionWord} ${sNum}`;
+}
+
+function addWarmUpSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, `Warm-Up: ${s.warmUpTitle}`, `Session ${sNum}`);
+  addHeader(slide, `${L.warmUpPrefix}${s.warmUpTitle}`, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Task instruction box
@@ -141,7 +222,7 @@ function addWarmUpSlide(pres: pptxgen, s: any, sNum: number, lessonName: string,
   slide.addShape('rect', { x: 0.3, y: 1.88, w: 9.4, h: 1.5, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1 },
     shadow: { type: 'outer', color: '000000', opacity: 0.07, blur: 4, offset: 2, angle: 135 } });
   slide.addShape('rect', { x: 0.3, y: 1.88, w: 9.4, h: 0.35, fill: { color: C.darkGreen }, line: { color: C.darkGreen, width: 0 } });
-  slide.addText('❓ THINK ABOUT THIS:', { x: 0.5, y: 1.88, w: 9.1, h: 0.35, fontFace: FONT_HEAD, fontSize: 11, bold: true, color: C.gold, valign: 'middle' });
+  slide.addText(L.thinkAboutThis, { x: 0.5, y: 1.88, w: 9.1, h: 0.35, fontFace: FONT_HEAD, fontSize: 11, bold: true, color: C.gold, valign: 'middle' });
   slide.addText(trunc(s.warmUpQuestion, 180), {
     x: 0.5, y: 2.28, w: 9.0, h: 1.05,
     fontFace: FONT_BODY, fontSize: 14, color: C.darkText, valign: 'middle', wrap: true, italic: true,
@@ -149,19 +230,19 @@ function addWarmUpSlide(pres: pptxgen, s: any, sNum: number, lessonName: string,
 
   // Answer space indicator
   slide.addShape('rect', { x: 0.3, y: 3.5, w: 9.4, h: 1.7, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1, dashType: 'dash' } });
-  slide.addText('✏️  Write your answer here...', {
+  slide.addText(L.writeAnswerHere, {
     x: 0.5, y: 3.5, w: 9.0, h: 1.7,
     fontFace: FONT_BODY, fontSize: 13, color: '#BDBDBD', valign: 'middle', italic: true,
   });
 }
 
-function addObjectivesSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addObjectivesSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, 'By the End of Today...', `Session ${sNum}`);
+  addHeader(slide, L.byEndOfToday, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
-  slide.addText('🎯  Learning Goals', {
+  slide.addText(L.learningGoals, {
     x: 0.3, y: 0.82, w: 9.4, h: 0.38,
     fontFace: FONT_HEAD, fontSize: 14, bold: true, color: C.midGreen,
   });
@@ -180,17 +261,17 @@ function addObjectivesSlide(pres: pptxgen, s: any, sNum: number, lessonName: str
   });
 }
 
-function addConceptSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addConceptSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, s.conceptTitle || 'Key Concept', `Session ${sNum}`);
+  addHeader(slide, s.conceptTitle || L.keyConceptDefault, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Definition box
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 9.4, h: 1.55, fill: { color: C.darkGreen }, line: { color: C.darkGreen, width: 0 },
     shadow: { type: 'outer', color: '000000', opacity: 0.12, blur: 6, offset: 3, angle: 135 } });
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 0.12, h: 1.55, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText('DEFINITION', { x: 0.55, y: 0.88, w: 3, h: 0.32, fontFace: FONT_BODY, fontSize: 10, bold: true, color: C.gold, charSpacing: 2 });
+  slide.addText(L.definition, { x: 0.55, y: 0.88, w: 3, h: 0.32, fontFace: FONT_BODY, fontSize: 10, bold: true, color: C.gold, charSpacing: 2 });
   slide.addText(trunc(s.conceptDefinition || '', 220), {
     x: 0.55, y: 1.22, w: 9.0, h: 1.1,
     fontFace: FONT_BODY, fontSize: 14, color: C.white, valign: 'top', wrap: true, italic: true,
@@ -198,7 +279,7 @@ function addConceptSlide(pres: pptxgen, s: any, sNum: number, lessonName: string
 
   // Key points
   const points: string[] = s.conceptKeyPoints || [];
-  slide.addText('📌  KEY POINTS TO REMEMBER:', {
+  slide.addText(L.keyPoints, {
     x: 0.3, y: 2.55, w: 9.4, h: 0.35,
     fontFace: FONT_HEAD, fontSize: 11, bold: true, color: C.midGreen,
   });
@@ -214,17 +295,17 @@ function addConceptSlide(pres: pptxgen, s: any, sNum: number, lessonName: string
   });
 }
 
-function addExampleSlide(pres: pptxgen, ex: any, exNum: number, sNum: number, lessonName: string, teacherName: string) {
+function addExampleSlide(pres: pptxgen, L: PptxLabels, ex: any, exNum: number, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, `Example ${exNum}: ${trunc(ex.title || '', 45)}`, `Session ${sNum}`);
+  addHeader(slide, `${L.examplePrefix}${exNum}: ${trunc(ex.title || '', 45)}`, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Problem statement
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 9.4, h: 0.82,
     fill: { color: C.stepPale }, line: { color: C.stepBlue, width: 1 } });
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 1.1, h: 0.82, fill: { color: C.stepBlue }, line: { color: C.stepBlue, width: 0 } });
-  slide.addText('GIVEN', { x: 0.3, y: 0.85, w: 1.1, h: 0.82, fontFace: FONT_BODY, fontSize: 10, bold: true, color: C.white, align: 'center', valign: 'middle' });
+  slide.addText(L.given, { x: 0.3, y: 0.85, w: 1.1, h: 0.82, fontFace: FONT_BODY, fontSize: 10, bold: true, color: C.white, align: 'center', valign: 'middle' });
   slide.addText(trunc(ex.problem || '', 160), {
     x: 1.5, y: 0.9, w: 8.1, h: 0.72,
     fontFace: FONT_BODY, fontSize: 13, bold: true, color: C.stepBlue, valign: 'middle', wrap: true,
@@ -232,7 +313,7 @@ function addExampleSlide(pres: pptxgen, ex: any, exNum: number, sNum: number, le
 
   // Steps
   const steps: string[] = ex.steps || [];
-  slide.addText('SOLUTION:', {
+  slide.addText(L.solution, {
     x: 0.3, y: 1.78, w: 3, h: 0.3,
     fontFace: FONT_HEAD, fontSize: 11, bold: true, color: C.midGreen,
   });
@@ -252,16 +333,16 @@ function addExampleSlide(pres: pptxgen, ex: any, exNum: number, sNum: number, le
   });
 }
 
-function addTryItSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addTryItSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, '✏️  Your Turn!', `Session ${sNum}`);
+  addHeader(slide, L.yourTurn, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Main problem
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 9.4, h: 2.1, fill: { color: C.darkGreen }, line: { color: C.darkGreen, width: 0 },
     shadow: { type: 'outer', color: '000000', opacity: 0.1, blur: 5, offset: 2, angle: 135 } });
-  slide.addText('SOLVE THIS:', { x: 0.55, y: 0.9, w: 4, h: 0.35, fontFace: FONT_BODY, fontSize: 11, bold: true, color: C.gold, charSpacing: 2 });
+  slide.addText(L.solveThis, { x: 0.55, y: 0.9, w: 4, h: 0.35, fontFace: FONT_BODY, fontSize: 11, bold: true, color: C.gold, charSpacing: 2 });
   slide.addText(trunc(s.tryItProblem || '', 200), {
     x: 0.55, y: 1.28, w: 9.0, h: 1.55,
     fontFace: FONT_BODY, fontSize: 15, bold: true, color: C.white, valign: 'top', wrap: true,
@@ -270,7 +351,7 @@ function addTryItSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, 
   // Hint
   if (s.tryItHint) {
     slide.addShape('rect', { x: 0.3, y: 3.1, w: 9.4, h: 0.72, fill: { color: '#FFF8E1' }, line: { color: C.gold, width: 1 } });
-    slide.addText(`💡  Hint: ${trunc(s.tryItHint, 130)}`, {
+    slide.addText(`${L.hintPrefix}${trunc(s.tryItHint, 130)}`, {
       x: 0.5, y: 3.1, w: 9.1, h: 0.72,
       fontFace: FONT_BODY, fontSize: 12, color: '#5D4037', valign: 'middle', italic: true, wrap: true,
     });
@@ -278,19 +359,19 @@ function addTryItSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, 
 
   // Work space
   slide.addShape('rect', { x: 0.3, y: 3.95, w: 9.4, h: 1.33, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1, dashType: 'dash' } });
-  slide.addText('Show your solution here:', {
+  slide.addText(L.showSolutionHere, {
     x: 0.5, y: 3.95, w: 9.0, h: 1.33,
     fontFace: FONT_BODY, fontSize: 12, color: '#BDBDBD', italic: true, valign: 'middle',
   });
 }
 
-function addDiscussionSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addDiscussionSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, '💬  Let\'s Discuss', `Session ${sNum}`);
+  addHeader(slide, L.letsDiscuss, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
-  slide.addText('Share your thoughts with the class:', {
+  slide.addText(L.shareThoughts, {
     x: 0.3, y: 0.85, w: 9.4, h: 0.38,
     fontFace: FONT_BODY, fontSize: 13, italic: true, color: C.mutedText,
   });
@@ -311,10 +392,10 @@ function addDiscussionSlide(pres: pptxgen, s: any, sNum: number, lessonName: str
   });
 }
 
-function addActivitySlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addActivitySlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, `⚡  Activity: ${trunc(s.activity?.title || 'Class Activity', 40)}`, `Session ${sNum}`);
+  addHeader(slide, `${L.activityPrefix}${trunc(s.activity?.title || L.classActivityDefault, 40)}`, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Instruction banner
@@ -326,9 +407,9 @@ function addActivitySlide(pres: pptxgen, s: any, sNum: number, lessonName: strin
 
   // 3-track cards
   const tracks = [
-    { label: 'Track A', sub: 'For Everyone', task: s.activity?.taskA || '', color: C.darkGreen, icon: '🌍' },
-    { label: 'Track B', sub: 'Need More Help?', task: s.activity?.taskB || '', color: C.midGreen, icon: '🤝' },
-    { label: 'Track C', sub: 'Challenge!', task: s.activity?.taskC || '', color: C.gold, icon: '🚀' },
+    { label: L.trackALabel, sub: L.trackASub, task: s.activity?.taskA || '', color: C.darkGreen, icon: '🌍' },
+    { label: L.trackBLabel, sub: L.trackBSub, task: s.activity?.taskB || '', color: C.midGreen, icon: '🤝' },
+    { label: L.trackCLabel, sub: L.trackCSub, task: s.activity?.taskC || '', color: C.gold, icon: '🚀' },
   ];
 
   const cardW = 2.95;
@@ -358,15 +439,15 @@ function addActivitySlide(pres: pptxgen, s: any, sNum: number, lessonName: strin
   });
 }
 
-function addExitTicketSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addExitTicketSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, '🎯  Exit Ticket', `Session ${sNum}`);
+  addHeader(slide, L.exitTicket, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Before you go instruction
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 9.4, h: 0.6, fill: { color: C.paleGreen }, line: { color: C.lightGreen, width: 1 } });
-  slide.addText('Before you leave, answer this on a piece of paper and pass it to your teacher.', {
+  slide.addText(L.beforeYouLeave, {
     x: 0.5, y: 0.85, w: 9.1, h: 0.6,
     fontFace: FONT_BODY, fontSize: 12, color: C.darkGreen, valign: 'middle', italic: true,
   });
@@ -375,7 +456,7 @@ function addExitTicketSlide(pres: pptxgen, s: any, sNum: number, lessonName: str
   slide.addShape('rect', { x: 0.3, y: 1.6, w: 9.4, h: 2.3, fill: { color: C.darkGreen }, line: { color: C.darkGreen, width: 0 },
     shadow: { type: 'outer', color: '000000', opacity: 0.12, blur: 6, offset: 3, angle: 135 } });
   slide.addShape('rect', { x: 0.3, y: 1.6, w: 9.4, h: 0.4, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText('ANSWER THIS:', {
+  slide.addText(L.answerThis, {
     x: 0.5, y: 1.6, w: 9.1, h: 0.4,
     fontFace: FONT_HEAD, fontSize: 13, bold: true, color: C.darkGreen, valign: 'middle', charSpacing: 2,
   });
@@ -386,7 +467,7 @@ function addExitTicketSlide(pres: pptxgen, s: any, sNum: number, lessonName: str
 
   // Answer lines
   slide.addShape('rect', { x: 0.3, y: 4.0, w: 9.4, h: 1.27, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1, dashType: 'dash' } });
-  slide.addText('My Answer:', {
+  slide.addText(L.myAnswer, {
     x: 0.5, y: 4.0, w: 3, h: 0.35,
     fontFace: FONT_BODY, fontSize: 11, bold: true, color: C.mutedText,
   });
@@ -396,17 +477,17 @@ function addExitTicketSlide(pres: pptxgen, s: any, sNum: number, lessonName: str
   }
 }
 
-function addRealLifeSlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addRealLifeSlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, `🌏  ${trunc(s.realLifeTitle || 'Real-Life Connection', 45)}`, `Session ${sNum}`);
+  addHeader(slide, `🌏  ${trunc(s.realLifeTitle || L.realLifeDefault, 45)}`, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
   // Fact box (left)
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 5.6, h: 4.42, fill: { color: C.darkGreen }, line: { color: C.darkGreen, width: 0 },
     shadow: { type: 'outer', color: '000000', opacity: 0.1, blur: 5, offset: 2, angle: 135 } });
   slide.addShape('rect', { x: 0.3, y: 0.85, w: 5.6, h: 0.38, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText('DID YOU KNOW?', { x: 0.45, y: 0.85, w: 5.3, h: 0.38, fontFace: FONT_HEAD, fontSize: 12, bold: true, color: C.darkGreen, valign: 'middle', charSpacing: 2 });
+  slide.addText(L.didYouKnow, { x: 0.45, y: 0.85, w: 5.3, h: 0.38, fontFace: FONT_HEAD, fontSize: 12, bold: true, color: C.darkGreen, valign: 'middle', charSpacing: 2 });
   slide.addText(trunc(s.realLifeFact || '', 280), {
     x: 0.45, y: 1.28, w: 5.3, h: 3.85,
     fontFace: FONT_BODY, fontSize: 13.5, color: C.white, valign: 'top', wrap: true, paraSpaceAfter: 5,
@@ -415,22 +496,22 @@ function addRealLifeSlide(pres: pptxgen, s: any, sNum: number, lessonName: strin
   // Question box (right)
   slide.addShape('rect', { x: 6.15, y: 0.85, w: 3.55, h: 4.42, fill: { color: C.offWhite }, line: { color: C.cardBorder, width: 1 } });
   slide.addShape('rect', { x: 6.15, y: 0.85, w: 3.55, h: 0.38, fill: { color: C.midGreen }, line: { color: C.midGreen, width: 0 } });
-  slide.addText('THINK:', { x: 6.28, y: 0.85, w: 3.3, h: 0.38, fontFace: FONT_HEAD, fontSize: 12, bold: true, color: C.white, valign: 'middle' });
+  slide.addText(L.think, { x: 6.28, y: 0.85, w: 3.3, h: 0.38, fontFace: FONT_HEAD, fontSize: 12, bold: true, color: C.white, valign: 'middle' });
   slide.addText(trunc(s.realLifeQuestion || '', 140), {
     x: 6.28, y: 1.3, w: 3.3, h: 2.5,
     fontFace: FONT_BODY, fontSize: 13, color: C.darkText, valign: 'top', wrap: true, italic: true,
   });
   slide.addShape('rect', { x: 6.28, y: 3.9, w: 3.3, h: 1.0, fill: { color: C.paleGreen }, line: { color: C.lightGreen, width: 1, dashType: 'dash' } });
-  slide.addText('My answer:', { x: 6.38, y: 3.92, w: 3.1, h: 0.3, fontFace: FONT_BODY, fontSize: 10, color: C.mutedText });
+  slide.addText(L.myAnswerLower, { x: 6.38, y: 3.92, w: 3.1, h: 0.3, fontFace: FONT_BODY, fontSize: 10, color: C.mutedText });
 }
 
-function addSummarySlide(pres: pptxgen, s: any, sNum: number, lessonName: string, teacherName: string) {
+function addSummarySlide(pres: pptxgen, L: PptxLabels, s: any, sNum: number, lessonName: string, teacherName: string) {
   const slide = pres.addSlide();
   slide.background = { color: C.white };
-  addHeader(slide, '📝  What We Learned Today', `Session ${sNum}`);
+  addHeader(slide, L.whatWeLearned, sessionBadge(L, sNum));
   addFooter(slide, lessonName, teacherName);
 
-  slide.addText('Great job today! Here are the key takeaways:', {
+  slide.addText(L.greatJob, {
     x: 0.3, y: 0.85, w: 9.4, h: 0.38,
     fontFace: FONT_BODY, fontSize: 13, italic: true, color: C.mutedText,
   });
@@ -452,25 +533,33 @@ function addSummarySlide(pres: pptxgen, s: any, sNum: number, lessonName: string
   });
 }
 
-function addClosingSlide(pres: pptxgen, lessonName: string, teacherName: string, sessionCount: number) {
+function addClosingSlide(pres: pptxgen, L: PptxLabels, lessonName: string, teacherName: string, sessionCount: number) {
   const slide = pres.addSlide();
   slide.background = { color: C.darkGreen };
   slide.addShape('rect', { x: 0, y: 0,       w: W, h: 0.2,  fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
   slide.addShape('rect', { x: 0, y: H - 0.2, w: W, h: 0.2,  fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText('🎉  Well Done!', { x: 0.5, y: 0.8, w: W - 1, h: 0.9, fontFace: FONT_HEAD, fontSize: 36, bold: true, color: C.gold, align: 'center' });
-  slide.addText('You have completed all sessions for:', { x: 0.5, y: 1.75, w: W - 1, h: 0.45, fontFace: FONT_BODY, fontSize: 14, color: C.white, align: 'center', italic: true });
+  slide.addText(L.wellDone, { x: 0.5, y: 0.8, w: W - 1, h: 0.9, fontFace: FONT_HEAD, fontSize: 36, bold: true, color: C.gold, align: 'center' });
+  slide.addText(L.completedAllSessions, { x: 0.5, y: 1.75, w: W - 1, h: 0.45, fontFace: FONT_BODY, fontSize: 14, color: C.white, align: 'center', italic: true });
   slide.addText(trunc(lessonName, 80), { x: 0.5, y: 2.25, w: W - 1, h: 0.8, fontFace: FONT_HEAD, fontSize: 22, bold: true, color: C.white, align: 'center', wrap: true });
   slide.addShape('rect', { x: 3, y: 3.15, w: 4, h: 0.05, fill: { color: C.gold }, line: { color: C.gold, width: 0 } });
-  slide.addText(`${sessionCount} Session${sessionCount > 1 ? 's' : ''}  ·  Teacher: ${teacherName}`, {
+  slide.addText(`${sessionCount} ${L.sessionWord}${sessionCount > 1 && !L.isFilipino ? 's' : ''}  ·  ${L.teacherPrefix}${teacherName}`, {
     x: 0.5, y: 3.28, w: W - 1, h: 0.4, fontFace: FONT_BODY, fontSize: 13, color: C.white, align: 'center',
   });
-  slide.addText('Keep learning. Keep growing. 💚', {
+  slide.addText(L.keepLearning, {
     x: 0.5, y: 4.8, w: W - 1, h: 0.35, fontFace: FONT_BODY, fontSize: 11, italic: true, color: C.gold, align: 'center',
   });
 }
 
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 // slideData: the parsed JSON from the AI transformation in /api/ppt/route.ts
+//
+// NOTE: this only fixes the *static* slide chrome (titles, badges, labels).
+// The actual slide body text (warmUpTask, objectives, summaryPoints, etc.)
+// comes from slideData, which is generated by a separate AI call in
+// /api/ppt/route.ts — if that route has its own isFilipino check (likely
+// copy-pasted the same way header.ts/flow.ts/assessment.ts did before being
+// fixed), it needs the same isFilipinoPH fix or the slide body text will
+// still come back in English even though the chrome around it is correct.
 
 export async function buildPptxBuffer(
   slideData: any,
@@ -480,6 +569,8 @@ export async function buildPptxBuffer(
   gradeSection = '',
   sessionCount = 3,
 ): Promise<Uint8Array> {
+
+  const L: PptxLabels = isFilipinoPH(learningArea) ? FILIPINO_LABELS : ENGLISH_LABELS;
 
   const pres = new pptxgen();
   pres.layout  = 'LAYOUT_16x9';
@@ -491,29 +582,29 @@ export async function buildPptxBuffer(
   const lessonHook: string = slideData.lessonHook || '';
 
   // ── Slide 1: Cover ──
-  addCoverSlide(pres, lessonName, teacherName, learningArea, gradeSection, sessionCount, lessonHook);
+  addCoverSlide(pres, L, lessonName, teacherName, learningArea, gradeSection, sessionCount, lessonHook);
 
   // ── Per-session slides (12 slides per session: 1 divider + 11 content) ──
   for (let i = 0; i < sessionCount; i++) {
     const s   = sessions[i] || {};
     const num = i + 1;
 
-    addSessionDivider(pres, num, s.sessionTitle || `Session ${num}`, lessonName);  // 1
-    addObjectivesSlide(pres, s, num, lessonName, teacherName);                      // 2
-    addWarmUpSlide(pres, s, num, lessonName, teacherName);                          // 3
-    addConceptSlide(pres, s, num, lessonName, teacherName);                         // 4
-    addExampleSlide(pres, s.example1 || {}, 1, num, lessonName, teacherName);       // 5
-    addExampleSlide(pres, s.example2 || {}, 2, num, lessonName, teacherName);       // 6
-    addTryItSlide(pres, s, num, lessonName, teacherName);                           // 7
-    addDiscussionSlide(pres, s, num, lessonName, teacherName);                      // 8
-    addActivitySlide(pres, s, num, lessonName, teacherName);                        // 9
-    addExitTicketSlide(pres, s, num, lessonName, teacherName);                      // 10
-    addRealLifeSlide(pres, s, num, lessonName, teacherName);                        // 11
-    addSummarySlide(pres, s, num, lessonName, teacherName);                         // 12
+    addSessionDivider(pres, L, num, s.sessionTitle || `${L.sessionWord} ${num}`, lessonName);  // 1
+    addObjectivesSlide(pres, L, s, num, lessonName, teacherName);                      // 2
+    addWarmUpSlide(pres, L, s, num, lessonName, teacherName);                          // 3
+    addConceptSlide(pres, L, s, num, lessonName, teacherName);                         // 4
+    addExampleSlide(pres, L, s.example1 || {}, 1, num, lessonName, teacherName);       // 5
+    addExampleSlide(pres, L, s.example2 || {}, 2, num, lessonName, teacherName);       // 6
+    addTryItSlide(pres, L, s, num, lessonName, teacherName);                           // 7
+    addDiscussionSlide(pres, L, s, num, lessonName, teacherName);                      // 8
+    addActivitySlide(pres, L, s, num, lessonName, teacherName);                        // 9
+    addExitTicketSlide(pres, L, s, num, lessonName, teacherName);                      // 10
+    addRealLifeSlide(pres, L, s, num, lessonName, teacherName);                        // 11
+    addSummarySlide(pres, L, s, num, lessonName, teacherName);                         // 12
   }
 
   // ── Final closing slide ──
-  addClosingSlide(pres, lessonName, teacherName, sessionCount);
+  addClosingSlide(pres, L, lessonName, teacherName, sessionCount);
 
   const buf = await pres.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
   return new Uint8Array(buf);
