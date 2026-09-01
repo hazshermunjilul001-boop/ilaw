@@ -150,7 +150,8 @@ async function callOpenRouter(
   const remaining = timeLeft();
   if (remaining <= 500) throw new Error(`[${callLabel}] Skipping OpenRouter — out of time budget.`);
 
-  const model = 'meta-llama/llama-3.3-70b-instruct:free';
+  // Free-only fallback: OpenRouter selects an available free model.
+  const model = 'openrouter/free';
   const attemptTimeout = Math.min(ATTEMPT_TIMEOUT_MS, remaining);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), attemptTimeout);
@@ -338,8 +339,8 @@ export async function callAI(
     'gemini-day': "Gemini's free daily quota is exhausted on every model and key tried. It resets at midnight Pacific Time — or add a Groq/OpenRouter key in Settings as a backup for the rest of today.",
     'gemini-minute': "Gemini's per-minute limit was hit repeatedly. Please wait about a minute and try again.",
     'gemini-invalid': 'Your Gemini API key was rejected as invalid. Please check it in Settings — get a fresh one at aistudio.google.com/apikey.',
-    'gemini-other': 'Gemini failed for an unexpected reason. Please try again, or add a Groq/OpenRouter key in Settings as a backup.',
-    'groq': 'Gemini and Groq both failed. Please try again in a bit, or add an OpenRouter key in Settings as a third backup.',
+    'gemini-other': 'Gemini failed for an unexpected reason. Please try again, or add a free Groq/OpenRouter key in Settings as a backup.',
+    'groq': 'Gemini and Groq both failed. Please try again in a bit, or add a free OpenRouter key in Settings as a third backup.',
     'openrouter': 'Gemini, Groq, and OpenRouter all failed. Please try again shortly.',
     'none-configured': 'No API key was found. Please add at least a Gemini API key in Settings — get a free one at aistudio.google.com/apikey.',
     'timeout': 'Generation ran out of time before finishing. Please try again — shorter lessons or fewer sessions generate faster.',
