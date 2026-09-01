@@ -3,16 +3,27 @@
 import Groq from 'groq-sdk';
 
 // ── SERVER FALLBACK KEYS ─────────────────────────────────────────────────
+// Accept both the code's original GEMINI_API_KEY names and the
+// GOOGLE_AI_KEY names currently used in the deployment environment.
 export const GEMINI_SERVER_FALLBACK_KEYS = [
-  process.env.GEMINI_API_KEY,
-  process.env.GEMINI_API_KEY_2,
-  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY ?? process.env.GOOGLE_AI_KEY,
+  process.env.GEMINI_API_KEY_2 ?? process.env.GOOGLE_AI_KEY_2,
+  process.env.GEMINI_API_KEY_3 ?? process.env.GOOGLE_AI_KEY_3,
+  process.env.GEMINI_API_KEY_4 ?? process.env.GOOGLE_AI_KEY_4,
+  process.env.GEMINI_API_KEY_5 ?? process.env.GOOGLE_AI_KEY_5,
 ].map(k => k?.trim()).filter((k): k is string => !!k);
 
-export const GROQ_SERVER_FALLBACK_KEYS = [
+// Try every configured Groq server key in order. Duplicate values are
+// removed so the same key is not retried unnecessarily.
+export const GROQ_SERVER_FALLBACK_KEYS = Array.from(new Set([
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
-].map(k => k?.trim()).filter((k): k is string => !!k);
+  process.env.GROQ_API_KEY_3,
+  process.env.GROQ_API_KEY_4,
+  process.env.GROQ_API_KEY_5,
+  process.env.GROQ_API_KEY_6,
+  process.env.GROQ_API_KEY_7,
+].map(k => k?.trim()).filter((k): k is string => !!k)));
 
 console.log(
   '[callAI] Module loaded. Gemini fallback keys:', GEMINI_SERVER_FALLBACK_KEYS.length,
