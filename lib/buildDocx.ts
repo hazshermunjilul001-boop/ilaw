@@ -4,7 +4,7 @@ import {
   LevelFormat, PageOrientation,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import { isFilipinoPH } from './language';
+import { resolveOutputLanguage, type OutputLanguage } from './language';
 
 // ── LANDSCAPE LAYOUT ─────────────────────────────────────────────────────
 // Page is now landscape Letter (11in x 8.5in) instead of portrait. Content
@@ -164,7 +164,7 @@ const FILIPINO_LABELS: TemplateLabels = {
   gradeSection: 'Antas at Seksyon',
   noOfSessions: 'Bilang ng Sesyon',
   references: 'Mga Sanggunian',
-  referencesDesc: '(mga libro, website, toolkit, atbp.)',
+  referencesDesc: '(mga aklat, sangguniang nasa internet, gabay, at iba pa)',
   aiDeclaration: 'Deklarasyon ng Paggamit ng AI',
   aiDeclarationDesc: 'Ipaliwanag kung paano ginamit ang AI sa pagbuo ng plano sa aralin.',
   aiDeclarationLink: 'Tingnan ang DO 003 s.2026 Annex A.',
@@ -203,26 +203,26 @@ const FILIPINO_LABELS: TemplateLabels = {
   flowDesc: 'Ilarawan ang mga aktibidad na maaari mong ipatupad sa 1 o higit pang sesyon upang matugunan ang iyong mga layunin.\n\nIlapat ang mga Prinsipyo sa Disenyo ng Pagkatuto, gamitin ang mga prompt sa ibaba bilang gabay. Tandaan, hindi lahat ng prinsipyo ay inaasahan sa bawat aralin:\n• gawing malinaw ang mga layunin para sa mga mag-aaral\n• gabayan ang mga mag-aaral bago hayaan silang subukan ang gawain nang mag-isa\n• suriin ang kalagayan ng kagalingan, pag-unawa, at kahusayan ng mga mag-aaral sa buong aralin\n• ikonekta ang mga bagong konsepto sa mga nakaraang kakayahan\n• hikayatin ang pakikipagtulungan sa pagitan ng mga mag-aaral\n• anyayahan ang mga mag-aaral na pagnilayan kung bakit ito mahalaga sa kanila\n• tiyaking kasama ang lahat para sa iba-ibang kakayahan, estilo ng pagkatuto, at konteksto',
 
   resourcesLabel: 'Mga Kagamitan sa Pagkatuto:',
-  resourcesDesc: 'Ilista ang mga kagamitan na tutulong sa iyo na maabot ang iyong mga layunin. Tiyakin na available at inklusibo ang mga ito.\n\nIsama ang mga alternatibo para sa mga emergency.',
+  resourcesDesc: 'Ilista ang mga kagamitang tutulong sa iyo na maabot ang iyong mga layunin. Tiyaking madaling makuha at angkop ang mga ito para sa lahat.\n\nMagsama ng mga pamalit sakaling magkaroon ng kagipitan.',
 
   // FIX #5: "integrasyon at kontekstwalisasyon" per DO 016 Section 7(b)(iv)
   integrationLabel: 'Mga Pagkakataon para sa Integrasyon at Kontekstwalisasyon:',
   integrationDesc: 'Isulat ang anumang posibilidad na makabuluhang maikonekta ang mga aralin sa iba pang larangang pampagkatuto, maisama ang kontekstwalisadong paggamit ng teknolohiya, at maisama ang mga kaugnay na tunay na buhay, kultural, o kontekstong pangkomunidad. N/A kung wala.',
 
   // ── Assessing Learning sub-labels ─────────────────────────────────────────
-  formativeLabel: 'Formative na Pagtatasa:',
-  formativeDesc: 'Lumikha ng gawain, aktibidad, o mga katanungan upang suriin ang pagkatuto at magbigay ng feedback sa bawat pagkakataon. Isama ang mga paraan para sa mga mag-aaral na humingi ng gabay o suporta sa buong sesyon.\n\nMagbigay ng angkop na akomodasyon upang maipakita ng lahat ang kanilang pag-unawa (hal., iba-ibang format ng tugon, opsyon sa maliit na grupo, visual o auditory na suporta)',
+  formativeLabel: 'Pormatibong Pagtatasa:',
+  formativeDesc: 'Lumikha ng gawain, aktibidad, o mga tanong upang suriin ang pagkatuto at magbigay ng makabuluhang tugon sa buong sesyon. Isama ang mga paraan upang makahingi ng gabay o tulong ang mga mag-aaral.\n\nMagbigay ng angkop na tulong upang maipakita ng lahat ang kanilang pag-unawa (hal., iba-ibang paraan ng pagsagot, maliit na pangkat, at mga kagamitang biswal o pandinig).',
 
   // ── Ways Forward sub-labels ───────────────────────────────────────────────
   extendedLabel: 'Mga Karagdagang Pagkakataon sa Pagkatuto:',
-  extendedDesc: 'Magmungkahi ng iba pang karanasan sa pagkatuto sa labas ng silid-aralan o oras ng klase na maaaring i-access ng mga mag-aaral upang palakasin ang natutunan, palawakin ang kanilang pagkamausisa, o magbigay ng suporta sa kanilang mga lugar ng kahirapan.',
+  extendedDesc: 'Magmungkahi ng iba pang karanasan sa pagkatuto sa labas ng silid-aralan o oras ng klase na maaaring gawin ng mga mag-aaral upang patibayin ang natutuhan, palawakin ang kanilang pagkamausisa, o matulungan sila sa mga bahaging nahihirapan sila.',
 
   reflectionsLabel: 'Mga Pagninilay:',
-  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon batay sa nangyari ngayon. Mayroon bang bagay na interesado ang mga mag-aaral na tuklasin?\n\nMayroon bang mga bagay na nais mong ibahagi sa iyong mga katrabahong guro, magulang, o mga lider ng paaralan tungkol sa iyong karanasan sa silid-aralan? Ano ang nais mong tulungan sa iyo ng iyong instructional coach?\n\nMaaaring isulat ang mga pagninilay sa maikling tala, mga bullet, o mga anotasyon.',
+  reflectionsDesc: 'Pag-isipan kung ano ang kailangan mong baguhin para sa susunod na sesyon batay sa nangyari ngayon. Mayroon bang bagay na nais pang tuklasin ng mga mag-aaral?\n\nMay nais ka bang ibahagi sa iyong mga kapwa guro, magulang, o pinuno ng paaralan tungkol sa karanasan mo sa klase? Anong tulong ang nais mong hingin sa tagapayo sa pagtuturo?\n\nMaaaring isulat ang mga pagninilay bilang maiikling tala, mga bullet, o anotasyon.',
 
   afterSession: 'Pagkatapos ng Sesyon',
   notesToShare: 'Mga tala para ibahagi sa mga katrabahong guro, magulang, o mga lider ng paaralan:',
-  coachHelp: 'Nais kong tulungan ako ng aking instructional coach sa:',
+  coachHelp: 'Nais kong matulungan ako ng tagapayo sa pagtuturo sa:',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -674,8 +674,9 @@ function buildLessonPlanDoc(
   learningArea: string,
   gradeSection: string,
   noOfSessions: string,
+  outputLanguage?: OutputLanguage,
 ): { doc: Document; isFilipino: boolean } {
-  const isFilipino = isFilipinoPH(learningArea);
+  const isFilipino = resolveOutputLanguage(learningArea, outputLanguage, [aiContent]) === 'filipino';
   const L = isFilipino ? FILIPINO_LABELS : ENGLISH_LABELS;
   const sessionWord = isFilipino ? 'Sesyon' : 'Session';
   const sessionCount = Math.max(1, parseInt(noOfSessions) || 3);
@@ -857,9 +858,10 @@ export async function buildDocx(
   learningArea = '',
   gradeSection = '',
   noOfSessions = '',
+  outputLanguage?: OutputLanguage,
 ) {
   const { doc, isFilipino } = buildLessonPlanDoc(
-    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions,
+    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions, outputLanguage,
   );
   const blob = await Packer.toBlob(doc);
   const filename = `${lessonName.replace(/[^a-z0-9]/gi, '_')}_${isFilipino ? 'Plano_sa_Aralin' : 'ILAW'}.docx`;
@@ -878,9 +880,10 @@ export async function buildDocxBuffer(
   learningArea = '',
   gradeSection = '',
   noOfSessions = '',
+  outputLanguage?: OutputLanguage,
 ): Promise<Uint8Array> {
   const { doc } = buildLessonPlanDoc(
-    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions,
+    aiContent, teacherName, lessonName, learningArea, gradeSection, noOfSessions, outputLanguage,
   );
   return new Uint8Array(await Packer.toBuffer(doc));
 }

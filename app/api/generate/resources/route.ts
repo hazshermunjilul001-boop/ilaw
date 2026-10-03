@@ -6,22 +6,21 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
-import { isFilipinoPH } from '../../../../lib/language';
+import { outputLanguageRules, resolveOutputLanguage } from '../../../../lib/language';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { 
-      lessonName, learningArea, gradeSection, schoolCity,
+      lessonName, learningArea, gradeSection, schoolCity, competency, classroomDetails,
       apiKey, apiKey2, geminiKey, openrouterKey,
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = isFilipinoPH(learningArea);
+    const outputLanguage = resolveOutputLanguage(learningArea, body.outputLanguage, [lessonName, competency, classroomDetails]);
+    const isFilipino = outputLanguage === 'filipino';
 
-    const lang = isFilipino
-      ? 'FILIPINO/TAGALOG ONLY. Write entirely in Filipino.'
-      : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya.';
+    const lang = outputLanguageRules(outputLanguage);
 
     const L = isFilipino ? {
       primaryMat: 'Pangunahing Kagamitan', emergency: 'Mga Alternatibo sa Emerhensya',

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
-import { isFilipinoPH } from '../../../../lib/language';
+import { outputLanguageRules, resolveOutputLanguage } from '../../../../lib/language';
 
 export async function POST(req: Request) {
   try {
@@ -30,14 +30,15 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    // FIX: shared detector (see lib/language.ts) — was missing "VE" locally
-    const isFilipino = isFilipinoPH(learningArea);
+    const outputLanguage = resolveOutputLanguage(learningArea, body.outputLanguage, [lessonName, competency, classroomDetails]);
+    const isFilipino = outputLanguage === 'filipino';
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') && !classroomDetails?.toLowerCase().includes('tv');
 
     // ── REPLACE THIS BLOCK ───────────────────────────────────────────────
-    const lang = isFilipino
-      ? 'FILIPINO/TAGALOG ONLY. Write entirely in Filipino. Do not use English words except for ALL CAPS section keys and unavoidable technical terms.'
-      : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya. Write entirely in English. When using Davao City context, use English names (e.g., "Davao City Hall", not "Gobyerno ng Davao"). Do NOT use local dialect words.';
+    const lang = outputLanguageRules(outputLanguage);
+    const bloomLabels = isFilipino
+      ? ['KAALAMAN', 'PAG-UNAWA', 'PAGLALAPAT', 'PAGSUSURI', 'PAGTATAYA']
+      : ['KNOWLEDGE', 'COMPREHENSION', 'APPLICATION', 'ANALYSIS', 'EVALUATION'];
     // ────────────────────────────────────────────────────────────────────
 
     const L = isFilipino ? {
@@ -79,7 +80,7 @@ CLASSROOM: ${classroomDetails}
 • Use bullet points (•) only — absolutely no numbered lists anywhere.
 • Every teacher instruction must be a word-for-word script.
 • Every example must name a real, specific place, price, or event from ${city}.
-• Label every Bloom's question: [KNOWLEDGE] [COMPREHENSION] [APPLICATION] [ANALYSIS] [EVALUATION].
+• Label every Bloom's question: ${bloomLabels.map(label => `[${label}]`).join(' ')}.
 • CRITICAL: Write the section for EVERY session — never skip, merge, or abbreviate any session.
 • CRITICAL FORMAT RULE: Every ALL-CAPS section key must appear on its OWN line, alone, with nothing else on that line.`;
 
@@ -94,9 +95,9 @@ Write a complete entry for EVERY session listed in SESSIONS above:
 **${L.session} N — "Assessment Tool Name"**
 **${L.descLabel}:** What specific skill this measures and why this format fits the session objective.
 **${L.sampleTasks}:**
-• [BLOOM'S LEVEL] Full task 1 — must use a ${city} real-world context with actual numbers
-• [BLOOM'S LEVEL] Full task 2
-• [BLOOM'S LEVEL] Full task 3
+• [${bloomLabels[0]}] Full task 1 — use a ${city} real-world context with actual numbers
+• [${bloomLabels[2]}] Full task 2
+• [${bloomLabels[4]}] Full task 3
 **${L.admin}:** Exact procedure: how distributed, time allowed, individual or pairs, how submitted or checked.
 **${L.howUsed}:** Scores 1-2: [exact teacher remedial action]. Scores 3-4: [exact enrichment action].
 **${L.rubric}:**

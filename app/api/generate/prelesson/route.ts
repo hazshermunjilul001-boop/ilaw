@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
-import { isFilipinoPH } from '../../../../lib/language';
+import { outputLanguageRules, resolveOutputLanguage } from '../../../../lib/language';
 
 export async function POST(req: Request) {
   try {
@@ -18,13 +18,12 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = isFilipinoPH(learningArea);
+    const outputLanguage = resolveOutputLanguage(learningArea, body.outputLanguage, [lessonName, competency, classroomDetails]);
+    const isFilipino = outputLanguage === 'filipino';
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') 
                      && !classroomDetails?.toLowerCase().includes('tv');
 
-    const lang = isFilipino
-      ? 'FILIPINO/TAGALOG ONLY. Write entirely in Filipino. Do not use English words except for ALL CAPS section keys and unavoidable technical terms.'
-      : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya. Write entirely in English.';
+    const lang = outputLanguageRules(outputLanguage);
 
     const L = isFilipino ? {
       session: 'SESYON', materials: 'Mga Kagamitan', procedure: 'Mga Hakbang',

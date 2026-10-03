@@ -10,7 +10,7 @@ import { buildDocxBuffer } from '../../../lib/buildDocx';
 
 export async function POST(req: Request) {
   try {
-    const { content, teacherName, lessonName, learningArea, gradeSection, sessions } =
+    const { content, teacherName, lessonName, learningArea, gradeSection, sessions, outputLanguage } =
       await req.json();
 
     // BYOK NOTE: This route does not need the API Key because it only handles file formatting (DOCX).
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No content provided' }, { status: 400 });
     }
 
-    const buffer = await buildDocxBuffer(content, teacherName, lessonName, learningArea, gradeSection, sessions);
+    const buffer = await buildDocxBuffer(content, teacherName, lessonName, learningArea, gradeSection, sessions, outputLanguage);
 
     const safeName = lessonName
       ? lessonName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').slice(0, 60)

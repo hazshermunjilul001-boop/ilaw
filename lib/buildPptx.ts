@@ -3,7 +3,7 @@
 // Color theme: dark green #1B5E20 + gold #F9A825 (matches sample template).
 
 import pptxgen from 'pptxgenjs';
-import { isFilipinoPH } from './language';
+import { resolveOutputLanguage, type OutputLanguage } from './language';
 
 // ── Color palette ─────────────────────────────────────────────────────────────
 const C = {
@@ -103,10 +103,10 @@ const FILIPINO_LABELS: typeof ENGLISH_LABELS = {
   shareThoughts:      'Ibahagi ang iyong opinyon sa klase:',
   activityPrefix:     '⚡  Gawain: ',
   classActivityDefault: 'Gawaing Pangklase',
-  trackALabel:        'Track A', trackASub: 'Para sa Lahat',
-  trackBLabel:        'Track B', trackBSub: 'Kailangan ng Tulong?',
-  trackCLabel:        'Track C', trackCSub: 'Hamon!',
-  exitTicket:         '🎯  Exit Ticket', // kept as-is: standard DepEd pedagogical term, commonly left untranslated
+  trackALabel:        'Pangkat A', trackASub: 'Para sa Lahat',
+  trackBLabel:        'Pangkat B', trackBSub: 'Kailangan ng Tulong?',
+  trackCLabel:        'Pangkat C', trackCSub: 'Hamon!',
+  exitTicket:         '🎯  Pangwakas na Gawain',
   beforeYouLeave:     'Bago ka umalis, sagutin ito sa isang papel at ipasa sa iyong guro.',
   answerThis:         'SAGUTIN ITO:',
   myAnswer:           'Aking Sagot:',
@@ -568,9 +568,12 @@ export async function buildPptxBuffer(
   learningArea = '',
   gradeSection = '',
   sessionCount = 3,
+  outputLanguage?: OutputLanguage,
 ): Promise<Uint8Array> {
 
-  const L: PptxLabels = isFilipinoPH(learningArea) ? FILIPINO_LABELS : ENGLISH_LABELS;
+  const L: PptxLabels = resolveOutputLanguage(learningArea, outputLanguage, [JSON.stringify(slideData ?? {})]) === 'filipino'
+    ? FILIPINO_LABELS
+    : ENGLISH_LABELS;
 
   const pres = new pptxgen();
   pres.layout  = 'LAYOUT_16x9';

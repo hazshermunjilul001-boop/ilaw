@@ -8,6 +8,7 @@ export const maxDuration = 60;
 import { NextResponse } from 'next/server';
 import { buildPptxBuffer } from '../../../lib/buildPptx';
 import { callAI } from '../../../lib/callAI';
+import { outputLanguageRules, resolveOutputLanguage } from '../../../lib/language';
 
 const SYSTEM = `You are an expert DepEd Philippines classroom presentation designer.
 Your job is to transform a teacher's ILAW Lesson Plan into student-facing PowerPoint slide content.
@@ -16,10 +17,10 @@ CRITICAL RULES:
 - Write EVERYTHING from the student's perspective — what THEY see on the projector screen.
 - NEVER include teacher instructions, scripts, or LP labels.
 - Use simple, clear, student-friendly language. Short sentences. Direct.
-- For objectives: rephrase as "By the end of today, you will be able to..." statements.
+- For objectives: write short, student-facing action statements in the selected output language.
 - For examples: show the COMPLETE step-by-step solution on the slide, not a description of it.
 - For activities: write the exact student task/question they need to answer.
-- Include actual numbers, equations, and Davao City contexts from the LP.
+- Include accurate numbers and equations from the LP, and use only local contexts supported by the LP.
 - Output ONLY the structured slide data in the exact JSON format requested. No extra text. No markdown fences.
 - CRITICAL: Each call asks for exactly ONE JSON object matching the schema given in that call's prompt. NEVER invent your own structure (e.g. a generic "slides": [...] array with "title"/"content" fields) — that format does NOT exist and will break the app. Only use the exact key names shown in the schema. If a call asks only for a "lessonHook" object, output ONLY that single key — nothing else, no matter how much space is left.`;
 
@@ -33,14 +34,15 @@ function buildSessionPrompt(
   return `Here is Session ${sessionNum} of ${sessionCount} from an ILAW Lesson Plan. Transform it into student-facing PowerPoint slide content.
 
 LANGUAGE RULE: ${langRules}
+Every JSON string value—including titles, questions, step labels, and summaries—must be in the selected output language. Treat English schema descriptions as instructions only; do not copy their wording into the generated slide text.
 
 Output ONLY valid JSON for this single session object (no array wrapper, no lessonHook, no other keys):
 {
   "sessionNum": ${sessionNum},
   "sessionTitle": "Short student-friendly session title (max 8 words)",
   "objectives": [
-    "By the end of today, you will be able to [action] (max 20 words)",
-    "By the end of today, you will be able to [action] (max 20 words)"
+    "Short student-facing learning outcome in the selected language (max 20 words)",
+    "Another short student-facing learning outcome in the selected language (max 20 words)"
   ],
   "warmUpTitle": "Name of the warm-up activity (max 6 words)",
   "warmUpTask": "The exact instruction students read on the slide (max 40 words)",
@@ -53,26 +55,26 @@ Output ONLY valid JSON for this single session object (no array wrapper, no less
     "Key point 3 (max 15 words)"
   ],
   "example1": {
-    "title": "Example 1 title using Davao City context",
+    "title": "Example title grounded in the lesson's local context",
     "problem": "The exact problem statement students see (max 25 words)",
     "steps": [
-      "Step 1: [what to do] → [result]",
-      "Step 2: [what to do] → [result]",
-      "Step 3: [what to do] → [result]",
-      "Step 4: [what to do] → [final answer]"
+      "First action and result, written in the selected language",
+      "Second action and result, written in the selected language",
+      "Third action and result, written in the selected language",
+      "Final action and answer, written in the selected language"
     ]
   },
   "example2": {
-    "title": "Example 2 title using a different Davao City context",
+    "title": "A second example title grounded in a different local context",
     "problem": "The exact problem statement students see (max 25 words)",
     "steps": [
-      "Step 1: [what to do] → [result]",
-      "Step 2: [what to do] → [result]",
-      "Step 3: [what to do] → [result]",
-      "Step 4: [what to do] → [final answer]"
+      "First action and result, written in the selected language",
+      "Second action and result, written in the selected language",
+      "Third action and result, written in the selected language",
+      "Final action and answer, written in the selected language"
     ]
   },
-  "tryItProblem": "Your Turn! — the exact problem students solve independently (max 30 words)",
+  "tryItProblem": "Exact independent practice task in the selected language (max 30 words)",
   "tryItHint": "A helpful hint for students who are stuck (max 20 words)",
   "discussionQuestions": [
     "Discussion question 1 for the whole class (max 20 words)",
@@ -82,13 +84,13 @@ Output ONLY valid JSON for this single session object (no array wrapper, no less
   "activity": {
     "title": "Student activity name (max 6 words)",
     "instruction": "Exact instruction students read (max 35 words)",
-    "taskA": "Track A — For everyone: exact task (max 25 words)",
-    "taskB": "Track B — Need more help? Try this: exact simpler task (max 25 words)",
-    "taskC": "Track C — Challenge: exact harder task (max 25 words)"
+    "taskA": "Accessible task for all learners, in the selected language (max 25 words)",
+    "taskB": "Scaffolded task for learners needing support, in the selected language (max 25 words)",
+    "taskC": "Higher-challenge task for advanced learners, in the selected language (max 25 words)"
   },
   "exitTicket": "The exact exit ticket question students answer on paper before leaving (max 25 words)",
   "realLifeTitle": "Real-life connection title (max 6 words)",
-  "realLifeFact": "A specific, concrete real-world fact using actual Davao City data (max 35 words)",
+  "realLifeFact": "A specific, concrete real-world fact using the locality and details in the lesson plan (max 35 words)",
   "realLifeQuestion": "A question connecting the lesson to that real-world fact (max 20 words)",
   "summaryPoints": [
     "What we learned: key takeaway 1 (max 15 words)",
@@ -111,6 +113,7 @@ Respond with ONLY this single JSON object, no markdown, no other keys, nothing b
 {"lessonHook": "One surprising fact or question to open the presentation (max 25 words)"}
 
 LANGUAGE RULE: ${langRules}
+Write the hook itself in the selected output language. Treat the English JSON description as an instruction, not text to copy.
 
 LESSON PLAN CONTENT:
  ${content.slice(0, 3000)}`;
@@ -190,19 +193,16 @@ export async function POST(req: Request) {
       apiKey, 
       apiKey2,
       geminiKey,      // <--- ADDED
-      openrouterKey, 
+      openrouterKey,
+      outputLanguage,
     } = await req.json();
 
     if (!content) {
       return NextResponse.json({ error: 'No lesson plan content provided' }, { status: 400 });
     }
 
-    // ── NEW: Determine Language for PPT ────────────────────────────────
-    const isFilipino = /araling panlipunan|filipino|edukasyon sa pagpapakatao|esp|mother tongue|mtb|epp/i.test(learningArea || '');
-    
-    const langRules = isFilipino
-      ? 'Write in FILIPINO/TAGALOG. Use simple, student-friendly Filipino words.'
-      : 'Write in ENGLISH only. No Filipino words.';
+    const resolvedLanguage = resolveOutputLanguage(learningArea, outputLanguage, [content]);
+    const langRules = outputLanguageRules(resolvedLanguage);
 
     const sessionCount = parseInt(sessions) || 3;
 
@@ -299,14 +299,14 @@ export async function POST(req: Request) {
     }
 
     const slideData = {
-      lessonHook: hookData?.lessonHook ?? 'Welcome to today\'s lesson!',
+      lessonHook: hookData?.lessonHook ?? (resolvedLanguage === 'filipino' ? 'Maligayang pagdating sa ating aralin!' : 'Welcome to today\'s lesson!'),
       sessions: validSessions, // Only include successful sessions
     };
 
     console.log(`[PPT] Slide data ready. Sessions: ${slideData.sessions.length}`);
 
     const buffer = await buildPptxBuffer(
-      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount,
+      slideData, teacherName, lessonName, learningArea, gradeSection, sessionCount, resolvedLanguage,
     );
 
     const safeName = lessonName

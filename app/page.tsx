@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { resolveOutputLanguage, type LanguageMode, type OutputLanguage } from '../lib/language';
 
 export default function Home() {
   const [form, setForm] = useState({
@@ -12,6 +13,8 @@ export default function Home() {
     classroomDetails: '',
     schoolCity: '',
   });
+  const [languageMode, setLanguageMode] = useState<LanguageMode>('auto');
+  const [generatedLanguage, setGeneratedLanguage] = useState<OutputLanguage | null>(null);
 
   // ── BYOK: Gemini (required), Groq (recommended), OpenRouter (final fallback) ──
   const [geminiKey, setGeminiKey] = useState('');
@@ -65,6 +68,11 @@ export default function Home() {
     '🌱 Almost done — finalizing your DOCX...',
   ];
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+  const resolvedLanguage = resolveOutputLanguage(languageMode === 'auto' ? form.learningArea : '', languageMode, [
+    form.lessonName,
+    form.competency,
+    form.classroomDetails,
+  ]);
 
   // ── FIXED handleGenerate to call all 5 split endpoints ─────────────
   const handleGenerate = async () => {
@@ -78,7 +86,8 @@ export default function Home() {
 
     try {
       // Prepare payload including ALL API Keys
-      const payload = { ...form, geminiKey, apiKey, openrouterKey };
+      const outputLanguage = resolvedLanguage;
+      const payload = { ...form, outputLanguage, geminiKey, apiKey, openrouterKey };
 
       // ── 5 staggered API calls ──
       // Spaced out so a single click doesn't spend all of a free-tier Gemini 
@@ -133,6 +142,7 @@ export default function Home() {
       // Stitch them together in the exact order buildDocx.ts expects
       const combinedContent = [partA, partPrelesson, partFlow, partResources, partD].join('\n\n');
       setGeneratedContent(combinedContent);
+      setGeneratedLanguage(outputLanguage);
 
       console.log('RAW CONTENT PREVIEW:', combinedContent.substring(0, 2000));
 
@@ -149,6 +159,7 @@ export default function Home() {
           learningArea: form.learningArea,
           gradeSection: form.gradeSection,
           sessions: form.sessions,
+          outputLanguage,
         }),
       });
 
@@ -863,6 +874,25 @@ export default function Home() {
                   )}
                 </div>
               ))}
+              <div className="field-group field-full" style={{ marginTop: 4 }}>
+                <label className="field-label" htmlFor="output-language">Lesson Plan and Slides Language</label>
+                <select
+                  id="output-language"
+                  className="field-input"
+                  value={languageMode}
+                  onChange={e => setLanguageMode(e.target.value as LanguageMode)}
+                  style={{ background: '#fff' }}
+                >
+                  <option value="auto">Auto — match the lesson input</option>
+                  <option value="filipino">Filipino / Tagalog</option>
+                  <option value="english">English</option>
+                </select>
+                <p className="req-note" style={{ marginTop: 4, marginBottom: 0 }}>
+                  {languageMode === 'auto'
+                    ? `Detected output: ${resolvedLanguage === 'filipino' ? 'Filipino / Tagalog' : 'English'}. Auto checks the learning area, lesson title, competency, and classroom notes; choose a language above to override it.`
+                    : `The complete lesson plan and its slides will use ${resolvedLanguage === 'filipino' ? 'Filipino / Tagalog' : 'English'}, regardless of the subject name.`}
+                </p>
+              </div>
             </div>
 
             <div className="divider" />
@@ -986,6 +1016,7 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                outputLanguage: generatedLanguage ?? resolvedLanguage,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
                                 openrouterKey: openrouterKey,
@@ -1037,6 +1068,7 @@ export default function Home() {
                                 learningArea: form.learningArea,
                                 gradeSection: form.gradeSection,
                                 sessions: form.sessions,
+                                outputLanguage: generatedLanguage ?? resolvedLanguage,
                                 geminiKey: geminiKey,
                                 apiKey: apiKey,
                                 openrouterKey: openrouterKey,

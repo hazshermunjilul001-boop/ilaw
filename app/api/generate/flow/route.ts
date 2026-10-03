@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { callAI } from '../../../../lib/callAI';
-import { isFilipinoPH } from '../../../../lib/language';
+import { outputLanguageRules, resolveOutputLanguage } from '../../../../lib/language';
 
 function ensureFlowTag(text: string): string {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
@@ -27,21 +27,20 @@ export async function POST(req: Request) {
     } = body;
 
     const city = schoolCity?.trim() || 'their city';
-    const isFilipino = isFilipinoPH(learningArea);
+    const outputLanguage = resolveOutputLanguage(learningArea, body.outputLanguage, [lessonName, competency, classroomDetails]);
+    const isFilipino = outputLanguage === 'filipino';
     const noProjector = !classroomDetails?.toLowerCase().includes('projector') 
                      && !classroomDetails?.toLowerCase().includes('tv');
 
-    const lang = isFilipino
-      ? 'FILIPINO/TAGALOG ONLY. Write entirely in Filipino.'
-      : 'STRICT ENGLISH ONLY. Do NOT translate to Tagalog or Bisaya.';
+    const lang = outputLanguageRules(outputLanguage);
 
     const L = isFilipino ? {
       session: 'SESYON', teacherScript: 'Mga tagubilin para sa guro',
-      studentActions: 'Mga aksyon ng mag-aaral', examples: 'Mga halimbawa',
-      diffLabel: 'Mga Naka-differentiate na Tagubilin', forAll: 'Para sa Lahat',
-      forSupport: 'Para sa Mga Nangangailangan', forAdvanced: 'Para sa Advanced',
+      studentActions: 'Mga Gawain ng Mag-aaral', examples: 'Mga Halimbawa',
+      diffLabel: 'Ibinabagay na mga Panuto', forAll: 'Para sa Lahat ng Mag-aaral',
+      forSupport: 'Para sa mga Mag-aaral na Nangangailangan ng Tulong', forAdvanced: 'Para sa mga Mag-aaral na Handa sa Hamon',
       guiding: 'Mga Gabay na Tanong', synthesis: 'Buod at Repleksyon',
-      closing: 'Pangwakas na talakayan', exit: 'Exit Ticket', realLife: 'Koneksyon sa tunay na buhay',
+      closing: 'Pangwakas na Talakayan', exit: 'Pangwakas na Gawain', realLife: 'Koneksyon sa Tunay na Buhay',
     } : {
       session: 'SESSION', teacherScript: 'Teacher Script',
       studentActions: 'Student Actions', examples: 'Examples',
@@ -50,6 +49,9 @@ export async function POST(req: Request) {
       guiding: 'Guiding Questions', synthesis: 'Synthesis and Reflection',
       closing: 'Closing Discussion', exit: 'Exit Ticket', realLife: 'Real-Life Connection',
     };
+    const bloomLabels = isFilipino
+      ? ['KAALAMAN', 'PAG-UNAWA', 'PAGLALAPAT', 'PAGSUSURI', 'PAGTATAYA']
+      : ['KNOWLEDGE', 'COMPREHENSION', 'APPLICATION', 'ANALYSIS', 'EVALUATION'];
 
     const lessonHeader = `LESSON: ${lessonName} | AREA: ${learningArea} | TEACHER: ${teacherName}
 GRADE: ${gradeSection} | SESSIONS: ${sessions} | CITY: ${city}
@@ -62,7 +64,7 @@ CLASSROOM: ${classroomDetails}
 • Use bullet points (•) only — no numbered lists.
 • Teacher instructions must be word-for-word scripts.
 • Examples must use real ${city} places/prices/events.
-• Label Bloom's: [KNOWLEDGE] [COMPREHENSION] [APPLICATION] [ANALYSIS] [EVALUATION]
+• Label Bloom's questions: ${bloomLabels.map(label => `[${label}]`).join(' ')}
 • FLOW must be on its OWN line alone.
 • Write for EVERY session — never skip any.`;
 
@@ -86,11 +88,11 @@ For EACH session write:
 • **${L.forSupport}:** Specific scaffold.
 • **${L.forAdvanced}:** Higher-order challenge.
 **${L.guiding}:**
-• [KNOWLEDGE] Question
-• [COMPREHENSION] Question
-• [APPLICATION] Question
-• [ANALYSIS] Question
-• [EVALUATION] Question
+• [${bloomLabels[0]}] Question
+• [${bloomLabels[1]}] Question
+• [${bloomLabels[2]}] Question
+• [${bloomLabels[3]}] Question
+• [${bloomLabels[4]}] Question
 **${L.synthesis}:**
 • **${L.closing}:** 2 discussion questions with expected responses.
 • **${L.exit}:** Exit ticket question + scoring guide.
