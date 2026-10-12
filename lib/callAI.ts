@@ -30,7 +30,7 @@ console.log(
   '| Groq fallback keys:', GROQ_SERVER_FALLBACK_KEYS.length,
 );
 
-const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
+const GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.6-flash'];
 
 // ── TIMEOUT / BUDGET CONFIG ──────────────────────────────────────────────
 // OVERALL_BUDGET_MS is now STRICTLY enforced: every individual network
